@@ -42,3 +42,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message });
 });
 
+// Import user routes
+const userRoutes = require("./routes/user");
+app.use("/api/user", userRoutes);
