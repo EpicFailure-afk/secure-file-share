@@ -45,3 +45,7 @@ app.use((err, req, res, next) => {
 // Import user routes
 const userRoutes = require("./routes/user");
 app.use("/api/user", userRoutes);
+
+// Import admin routes
+const adminRoutes = require("./routes/admin");
+app.use("/api/admin", adminRoutes);
