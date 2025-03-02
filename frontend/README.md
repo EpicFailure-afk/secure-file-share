@@ -58,11 +58,3 @@ frontend/
 │── README.md
 ```
 
-## **🚀 Next Steps**  
-- Implement **backend authentication** and connect the login/register forms.  
-- Add **toast notifications** for success and error messages.  
-- Improve UI responsiveness for mobile users.  
-
----
-
-This `README.md` gives a clear overview of what you've built so far and what's next. Let me know if you want any modifications!
