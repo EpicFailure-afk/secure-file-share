@@ -1,8 +1,68 @@
-# React + Vite
+# **Secure File Share - Frontend**  
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the frontend of the **Secure File Share** project, built using **React.js** with **Vite**. The application includes authentication pages with smooth animations and a modern UI design.  
 
-Currently, two official plugins are available:
+## **📌 Features Implemented**  
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### **1️⃣ Project Setup**  
+- Initialized a React project using **Vite**.  
+- Installed necessary dependencies:
+  ```bash
+  npm install react-router-dom framer-motion
+  ```
+- Set up project structure with a `pages` folder for **Login** and **Register** components.  
+
+### **2️⃣ Authentication Pages (Login & Register)**  
+- Designed **Login** and **Register** pages with a modern UI.  
+- Implemented **form validation**:
+  - Login requires **email and password**.  
+  - Register includes **username, email, password, and confirm password**.  
+  - Password confirmation logic ensures the two passwords match.  
+- Styled the pages with a blurred background and smooth form design.  
+
+### **3️⃣ Routing with React Router**  
+- Configured **react-router-dom** for navigation.  
+- Added routes in `App.jsx`:
+  ```jsx
+  <Routes>
+    <Route path="/login" element={<Login />} />
+    <Route path="/register" element={<Register />} />
+  </Routes>
+  ```
+- Linked the "Sign Up" button on the login page to navigate to the register page and vice versa.  
+
+### **4️⃣ Page Transition Animations**  
+- Integrated **Framer Motion** for smooth animations when switching between login and register pages.  
+- Pages slide in/out when navigating.  
+- Used **AnimatePresence** in `App.jsx` to ensure animations run correctly:
+  ```jsx
+  <AnimatePresence mode="wait">
+    <Routes location={location} key={location.pathname}>
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+    </Routes>
+  </AnimatePresence>
+  ```
+
+## **📂 Project Structure**  
+```
+frontend/
+│── src/
+│   ├── pages/
+│   │   ├── Login.jsx
+│   │   ├── Register.jsx
+│   ├── App.jsx
+│   ├── main.jsx
+│── public/
+│── package.json
+│── README.md
+```
+
+## **🚀 Next Steps**  
+- Implement **backend authentication** and connect the login/register forms.  
+- Add **toast notifications** for success and error messages.  
+- Improve UI responsiveness for mobile users.  
+
+---
+
+This `README.md` gives a clear overview of what you've built so far and what's next. Let me know if you want any modifications!
