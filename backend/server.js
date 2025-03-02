@@ -11,6 +11,8 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+const MONGO_URI = process.env.MONGO_URI;
+
 // Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
