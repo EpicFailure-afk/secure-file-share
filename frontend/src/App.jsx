@@ -26,9 +26,13 @@ const AnimatedRoutes = () => {
 function App() {
   return (
     <Router>
-       <Navbar />
-       <Footer />
-      <AnimatedRoutes />
+      <div className="app-container">
+        <Navbar />
+        <main className="content">
+          <AnimatedRoutes />
+        </main>
+        <Footer />
+      </div>
     </Router>
   );
 }

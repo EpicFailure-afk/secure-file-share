@@ -5,7 +5,7 @@ const Footer = () => {
   return (
     <footer className={styles.footer}>
       <div className={styles.content}>
-        <p>&copy; {new Date().getFullYear()} <span className={styles.name}>Secure File Sharing</span>. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()}</p> <span className={styles.name}>Secure File Sharing </span><br></br><p> All rights reserved.</p>
         <div className={styles.socialIcons}>
           <a href="https://github.com/" target="_blank" rel="noopener noreferrer">
             <FaGithub />
