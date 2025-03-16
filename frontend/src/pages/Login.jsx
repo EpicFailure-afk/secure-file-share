@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import styles from "./Login.module.css";
 import { loginUser } from "../api";
@@ -8,20 +8,30 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
+  const navigate = useNavigate(); // Used for navigation after login
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null); // Clear previous errors
 
-    const response = await loginUser({ email, password });
+    try {
+      const response = await loginUser({ email, password });
 
-    if (response.error) {
-      setError(response.error); // Display error if login fails
-    } else {
-      console.log("Login successful:", response);
-      // Store the token (if any) in localStorage or context
-      localStorage.setItem("token", response.token);
-      // Redirect user to another page (if needed)
+      if (!response || response.error) {
+        setError(response.error || "Login failed. Please try again.");
+        return;
+      }
+
+      if (response.token) {
+        localStorage.setItem("token", response.token);
+        console.log("Login successful:", response);
+        navigate("/dashboard"); // Redirect to dashboard after login
+      } else {
+        setError("Invalid response from server.");
+      }
+    } catch (err) {
+      setError("Network error. Please check your connection.");
+      console.error("Login Error:", err);
     }
   };
 
@@ -53,8 +63,7 @@ const Login = () => {
             required
           />
         </div>
-        {error && <p className={styles.error}>{error}</p>}{" "}
-        {/* Show errors if any */}
+        {error && <p className={styles.error}>{error}</p>} {/* Show error messages */}
         <button type="submit" className={styles.btn}>
           Sign In
         </button>

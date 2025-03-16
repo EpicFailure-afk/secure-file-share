@@ -1,0 +1,147 @@
+/* Navbar Base */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.8), rgba(20, 20, 20, 0.8));
+  backdrop-filter: blur(15px);
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  transition: background 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+/* Logo */
+.logo a {
+  display: flex;
+  align-items: center;
+}
+
+.logoImage {
+  height: 50px;
+  width: auto;
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+.logoImage:hover {
+  transform: scale(1.1);
+  opacity: 0.8;
+}
+
+/* Menu Button (Mobile) */
+.menuBtn {
+  display: none;
+  font-size: 24px;
+  color: white;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.3s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.menuBtn:hover {
+  opacity: 0.7;
+  transform: rotate(90deg);
+}
+
+/* Desktop Navigation */
+.desktopNav {
+  display: flex;
+  gap: 20px;
+}
+
+.desktopNav a {
+  color: white;
+  text-decoration: none;
+  font-size: 18px;
+  position: relative;
+  transition: color 0.3s ease-in-out;
+}
+
+.desktopNav a::after {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  bottom: -4px;
+  left: 0;
+  background-color: white;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease-in-out;
+}
+
+.desktopNav a:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.desktopNav a:hover {
+  color: #f1c40f;
+}
+
+/* Mobile Menu */
+.mobileMenu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 220px;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(15px);
+  border-radius: 8px;
+  flex-direction: column;
+  text-align: center;
+  transition: all 0.3s ease-in-out;
+}
+
+.mobileMenu a {
+  display: block;
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  text-decoration: none;
+  transition: background 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+.mobileMenu a:hover {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 0.8;
+}
+
+/* Open Mobile Menu */
+.mobileMenu.open {
+  display: flex;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Dark Mode Toggle */
+.toggleBtn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 22px;
+  cursor: pointer;
+  transition: opacity 0.3s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.toggleBtn:hover {
+  opacity: 0.7;
+  transform: rotate(10deg);
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .menuBtn {
+    display: block;
+  }
+
+  .desktopNav {
+    display: none;
+  }
+}
+
