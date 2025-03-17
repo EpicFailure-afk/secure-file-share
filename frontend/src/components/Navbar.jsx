@@ -5,8 +5,6 @@ import { Link, useLocation } from "react-router-dom"
 import { motion } from "framer-motion"
 import { FaSun, FaMoon, FaBars, FaTimes } from "react-icons/fa"
 import styles from "./Navbar.module.css"
-// You'll need to add your new logo file to the assets folder
-// and update this import path
 import logo from "../assets/image.png"
 
 const Navbar = () => {
