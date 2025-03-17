@@ -6,14 +6,19 @@
 }
 
 /* Ensures the full viewport height is used */
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   padding: 0;
+  font-family: "Poppins", sans-serif;
+}
+
+#root {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
 }
 
 /* Container to manage layout */
@@ -22,81 +27,88 @@ html, body, #root {
   flex-direction: column;
   min-height: 100vh; /* Full screen height */
   width: 100%;
-  max-width: 1280px;
 }
 
 /* Main Content */
 .content {
   flex: 1; /* Expands to push the footer down */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  padding-top: 70px; /* Account for fixed navbar */
+  position: relative;
+  z-index: 1;
 }
 
-/* Footer Styling */
-.footer {
+/* Background styles for the entire app */
+body {
+  background-color: #121212;
+  color: #f5f5f5;
+  background: url("https://source.unsplash.com/1920x1080/?technology,abstract") no-repeat center center fixed;
+  background-size: cover;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
-  text-align: center;
-  padding: 1rem;
-  background-color: #f8f9fa;
-  border-top: 1px solid #ddd;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 0;
+}
+
+/* Dark mode styles */
+body.dark {
+  background-color: #121212;
+  color: #f5f5f5;
+}
+
+body:not(.dark) {
+  background-color: #f5f5f5;
+  color: #121212;
+}
+
+body:not(.dark)::before {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ff8a00, #e52e71);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #e52e71, #ff8a00);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .content {
-    padding: 1rem;
-  }
-
-  .footer {
-    padding: 0.8rem;
+    padding-top: 60px;
   }
 }
 
-/* Logo Styling */
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-/* Card Component */
-.card {
-  padding: 2em;
-  background: #fff;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  max-width: 500px;
-  width: 100%;
-}
-
-/* Documentation Text */
-.read-the-docs {
-  color: #888;
-}

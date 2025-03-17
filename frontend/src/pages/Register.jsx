@@ -1,8 +1,11 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import styles from "./Register.module.css";
-import { registerUser } from "../api";
+"use client"
+
+import { useState } from "react"
+import { Link } from "react-router-dom"
+import { motion, AnimatePresence } from "framer-motion"
+import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaCheckCircle } from "react-icons/fa"
+import styles from "./Register.module.css"
+import { registerUser } from "../api"
 
 const Register = () => {
   const [userData, setUserData] = useState({
@@ -10,119 +13,169 @@ const Register = () => {
     email: "",
     password: "",
     confirmPassword: "",
-  });
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false); // Success popup state
+  })
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const handleChange = (e) => {
-    setUserData({ ...userData, [e.target.name]: e.target.value });
-  };
+    setUserData({ ...userData, [e.target.name]: e.target.value })
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
 
     if (userData.password !== userData.confirmPassword) {
-      setError("Passwords do not match");
-      return;
+      setError("Passwords do not match")
+      setLoading(false)
+      return
     }
 
-    const response = await registerUser(userData);
+    try {
+      const response = await registerUser(userData)
 
-    if (response.error) {
-      setError(response.error);
-    } else {
-      setSuccess(true); // Show success popup
-      setUserData({ username: "", email: "", password: "", confirmPassword: "" });
-
-      // Hide the popup after 3 seconds
-      setTimeout(() => setSuccess(false), 3000);
+      if (response.error) {
+        setError(response.error)
+      } else {
+        setSuccess(true)
+        setUserData({ username: "", email: "", password: "", confirmPassword: "" })
+        setTimeout(() => setSuccess(false), 5000)
+      }
+    } catch (err) {
+      setError("Network error. Please check your connection.")
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <motion.div
-      className={styles.container}
-      initial={{ opacity: 0, x: -50 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 50 }}
-      transition={{ duration: 0.5 }}
-    >
-      <form className={styles.registerForm} onSubmit={handleSubmit}>
-        <h2>Register</h2>
+    <div className={styles.pageWrapper}>
+      <motion.div
+        className={styles.container}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <motion.div
+          className={styles.formCard}
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
+          <div className={styles.formHeader}>
+            <h2>Create Account</h2>
+            <p>Join our secure file sharing platform</p>
+          </div>
 
-        <div className={styles.inputGroup}>
-          <input
-            type="text"
-            name="username"
-            placeholder="Username"
-            value={userData.username}
-            onChange={handleChange}
-            required
-          />
-        </div>
+          <form className={styles.registerForm} onSubmit={handleSubmit}>
+            <div className={styles.inputGroup}>
+              <div className={styles.inputIcon}>
+                <FaUser />
+              </div>
+              <input
+                type="text"
+                name="username"
+                placeholder="Username"
+                value={userData.username}
+                onChange={handleChange}
+                required
+              />
+            </div>
 
-        <div className={styles.inputGroup}>
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={userData.email}
-            onChange={handleChange}
-            required
-          />
-        </div>
+            <div className={styles.inputGroup}>
+              <div className={styles.inputIcon}>
+                <FaEnvelope />
+              </div>
+              <input
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={userData.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
 
-        <div className={styles.inputGroup}>
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={userData.password}
-            onChange={handleChange}
-            required
-          />
-        </div>
+            <div className={styles.inputGroup}>
+              <div className={styles.inputIcon}>
+                <FaLock />
+              </div>
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Password"
+                value={userData.password}
+                onChange={handleChange}
+                required
+              />
+              <button type="button" className={styles.passwordToggle} onClick={() => setShowPassword(!showPassword)}>
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
 
-        <div className={styles.inputGroup}>
-          <input
-            type="password"
-            name="confirmPassword"
-            placeholder="Confirm Password"
-            value={userData.confirmPassword}
-            onChange={handleChange}
-            required
-          />
-        </div>
+            <div className={styles.inputGroup}>
+              <div className={styles.inputIcon}>
+                <FaLock />
+              </div>
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirmPassword"
+                placeholder="Confirm Password"
+                value={userData.confirmPassword}
+                onChange={handleChange}
+                required
+              />
+              <button
+                type="button"
+                className={styles.passwordToggle}
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
 
-        {error && <p className={styles.error}>{error}</p>}
+            {error && <p className={styles.error}>{error}</p>}
 
-        <button type="submit" className={styles.btn}>
-          Sign Up
-        </button>
+            <button type="submit" className={styles.btn} disabled={loading}>
+              {loading ? "Creating Account..." : "Sign Up"}
+            </button>
 
-        <p className={styles.loginLink}>
-          Already have an account? <Link to="/login">Sign In</Link>
-        </p>
-      </form>
+            <p className={styles.loginLink}>
+              Already have an account? <Link to="/login">Sign In</Link>
+            </p>
+          </form>
+        </motion.div>
 
-      {/* Success Popup */}
-      <AnimatePresence>
-        {success && (
-          <motion.div
-            className={styles.successPopup}
-            initial={{ y: -50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -50, opacity: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <p>Registration Successful!</p>
-            <button onClick={() => setSuccess(false)}>OK</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-};
+        {/* Success Popup */}
+        <AnimatePresence>
+          {success && (
+            <motion.div
+              className={styles.successPopup}
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -50, opacity: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <FaCheckCircle className={styles.successIcon} />
+              <div>
+                <h3>Registration Successful!</h3>
+                <p>Your account has been created. You can now log in.</p>
+              </div>
+              <Link to="/login" className={styles.loginNowBtn}>
+                Login Now
+              </Link>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </div>
+  )
+}
 
-export default Register;
+export default Register
+
