@@ -177,6 +177,37 @@
   color: #e52e71;
 }
 
+.tokenInfo {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 3px solid #ff8a00;
+}
+
+.tokenInfo p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.tokenInfo p:first-child {
+  margin-bottom: 5px;
+}
+
+.backBtn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.3s ease;
+}
+
+.backBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
 @media (max-width: 768px) {
   .formCard {
     padding: 2rem;

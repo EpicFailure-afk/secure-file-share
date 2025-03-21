@@ -5,6 +5,8 @@ import { AnimatePresence } from "framer-motion"
 import Login from "./pages/Login"
 import Register from "./pages/Register"
 import Home from "./pages/Home"
+import Dashboard from "./pages/Dashboard"
+import ForgotPassword from "./pages/ForgotPassword"
 import Navbar from "./components/Navbar"
 import Footer from "./components/Footer"
 import "./App.css"
@@ -18,6 +20,8 @@ const AnimatedRoutes = () => {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
       </Routes>
     </AnimatePresence>
   )
