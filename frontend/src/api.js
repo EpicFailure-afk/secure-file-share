@@ -77,6 +77,71 @@ export const verifyPasswordReset = async (resetData) => {
   }
 }
 
+// User profile API calls
+export const getUserProfile = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`${API_URL}/user/profile`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Profile Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+export const updateUserProfile = async (profileData) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`${API_URL}/user/update-profile`, {
+      method: "PUT",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(profileData),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Update Profile Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+export const updateUserPassword = async (passwordData) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`${API_URL}/user/update-password`, {
+      method: "PUT",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(passwordData),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Update Password Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
 // File API calls
 export const getUserFiles = async () => {
   try {
@@ -207,26 +272,6 @@ export const shareFile = async (fileId) => {
     return await response.json()
   } catch (error) {
     console.error("Share File Error:", error)
-    return { error: "Network error. Please try again." }
-  }
-}
-
-export const getUserProfile = async () => {
-  try {
-    const token = localStorage.getItem("token")
-    if (!token) {
-      return { error: "Unauthorized" }
-    }
-
-    const response = await fetch(`${API_URL}/user/profile`, {
-      method: "GET",
-      headers: {
-        Authorization: token,
-      },
-    })
-    return await response.json()
-  } catch (error) {
-    console.error("Get Profile Error:", error)
     return { error: "Network error. Please try again." }
   }
 }

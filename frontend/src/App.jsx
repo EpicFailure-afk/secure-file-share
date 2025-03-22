@@ -7,6 +7,7 @@ import Register from "./pages/Register"
 import Home from "./pages/Home"
 import Dashboard from "./pages/Dashboard"
 import ForgotPassword from "./pages/ForgotPassword"
+import EditProfile from "./pages/EditProfile"
 import Navbar from "./components/Navbar"
 import Footer from "./components/Footer"
 import "./App.css"
@@ -22,6 +23,7 @@ const AnimatedRoutes = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/edit-profile" element={<EditProfile />} />
       </Routes>
     </AnimatePresence>
   )

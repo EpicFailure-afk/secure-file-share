@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Link } from "react-router-dom"
 import { motion } from "framer-motion"
 import {
   FaUpload,
@@ -17,6 +17,7 @@ import {
   FaFileVideo,
   FaFileAudio,
   FaFileCode,
+  FaUserEdit,
 } from "react-icons/fa"
 import styles from "./Dashboard.module.css"
 import { getUserFiles, uploadFile, deleteFile, shareFile, downloadFile, getUserProfile } from "../api"
@@ -219,14 +220,28 @@ const Dashboard = () => {
       >
         <div className={styles.headerContent}>
           {user && (
-            <motion.h2
-              className={styles.welcomeMessage}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              Welcome back, {user.username}
-            </motion.h2>
+            <motion.div className={styles.welcomeWrapper}>
+              <motion.h2 className={styles.welcomeMessage}>
+                Welcome back,{" "}
+                <motion.span
+                  className={styles.animatedUsername}
+                  initial={{ backgroundPosition: "0% 50%" }}
+                  animate={{
+                    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                  }}
+                  transition={{
+                    duration: 5,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: "linear",
+                  }}
+                >
+                  {user.username}
+                </motion.span>
+              </motion.h2>
+              <Link to="/edit-profile" className={styles.editProfileLink}>
+                <FaUserEdit /> Edit your data
+              </Link>
+            </motion.div>
           )}
           <h1>My Files</h1>
         </div>

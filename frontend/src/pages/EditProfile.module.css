@@ -1,0 +1,249 @@
+.editProfileContainer {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    min-height: calc(100vh - 70px - 200px);
+    position: relative;
+    z-index: 2;
+  }
+  
+  .header {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 2rem;
+  }
+  
+  .backButton {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    width: fit-content;
+    transition: all 0.3s ease;
+  }
+  
+  .backButton:hover {
+    color: #ff8a00;
+    transform: translateX(-5px);
+  }
+  
+  .header h1 {
+    font-size: 2.5rem;
+    background: linear-gradient(90deg, #ff8a00, #e52e71);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+  }
+  
+  .tabsContainer {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 1rem;
+  }
+  
+  .tabButton {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+  }
+  
+  .tabButton:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+  }
+  
+  .activeTab {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ff8a00;
+    font-weight: 600;
+  }
+  
+  .formContainer {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .formGroup label {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.9);
+  }
+  
+  .inputGroup {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .inputIcon {
+    position: absolute;
+    left: 15px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1rem;
+  }
+  
+  .inputGroup input {
+    width: 100%;
+    padding: 15px 15px 15px 45px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .inputGroup input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+  
+  .inputGroup input:focus {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 0 2px rgba(255, 138, 0, 0.2);
+  }
+  
+  .disabledInput {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
+  
+  .helperText {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 0.25rem;
+  }
+  
+  .passwordToggle {
+    position: absolute;
+    right: 15px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+  }
+  
+  .passwordToggle:hover {
+    color: #ff8a00;
+  }
+  
+  .submitButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: linear-gradient(90deg, #ff8a00, #e52e71);
+    color: white;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+  }
+  
+  .submitButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 7px 14px rgba(229, 46, 113, 0.3);
+  }
+  
+  .submitButton:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .error {
+    color: #ff4d4d;
+    background: rgba(255, 77, 77, 0.1);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    border-left: 3px solid #ff4d4d;
+  }
+  
+  .success {
+    color: #4caf50;
+    background: rgba(76, 175, 80, 0.1);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    border-left: 3px solid #4caf50;
+  }
+  
+  .loadingContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+  }
+  
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    border-top-color: #ff8a00;
+    animation: spin 1s ease-in-out infinite;
+    margin-bottom: 1rem;
+  }
+  
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .formContainer {
+      padding: 1.5rem;
+    }
+  
+    .tabsContainer {
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+  
+    .tabButton {
+      text-align: left;
+    }
+  }
+  
+  
