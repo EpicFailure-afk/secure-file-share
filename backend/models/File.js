@@ -34,6 +34,10 @@ const fileSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  encryptionIv: {
+    type: String,
+    default: null,
+  },
 })
 
 module.exports = mongoose.model("File", fileSchema)

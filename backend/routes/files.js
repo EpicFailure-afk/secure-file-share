@@ -5,6 +5,7 @@ const fs = require("fs")
 const crypto = require("crypto")
 const File = require("../models/File")
 const authMiddleware = require("../middleware/auth")
+const { encryptFile, decryptFileToStream } = require("../utils/encryption")
 
 const router = express.Router()
 
@@ -50,12 +51,20 @@ router.post("/upload", authMiddleware, upload.single("file"), async (req, res) =
       return res.status(400).json({ error: "No file uploaded" })
     }
 
+    // Generate encrypted file path
+    const originalFilePath = req.file.path
+    const encryptedFilePath = originalFilePath + ".enc"
+
+    // Encrypt the file
+    const { iv } = await encryptFile(originalFilePath, encryptedFilePath)
+
     const newFile = new File({
       userId: req.user.userId,
       fileName: req.file.originalname,
       fileType: req.file.mimetype,
       fileSize: req.file.size,
-      filePath: req.file.path,
+      filePath: encryptedFilePath,
+      encryptionIv: iv, // Store the IV for decryption later
     })
 
     await newFile.save()
@@ -88,7 +97,19 @@ router.get("/:id/download", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "File not found" })
     }
 
-    res.download(file.filePath, file.fileName)
+    // Decrypt the file and get a read stream
+    const { stream, cleanup } = await decryptFileToStream(file.filePath)
+
+    // Set appropriate headers
+    res.setHeader("Content-Disposition", `attachment; filename="${file.fileName}"`)
+    res.setHeader("Content-Type", file.fileType)
+
+    // Pipe the decrypted stream to the response
+    stream.pipe(res)
+
+    // Clean up the temporary file after streaming is complete
+    stream.on("end", cleanup)
+    stream.on("error", cleanup)
   } catch (err) {
     console.error("Error downloading file:", err)
     res.status(500).json({ error: "Server error" })
@@ -169,7 +190,19 @@ router.get("/share/:token", async (req, res) => {
       return res.status(404).json({ error: "Shared file not found or link expired" })
     }
 
-    res.download(file.filePath, file.fileName)
+    // Decrypt the file and get a read stream
+    const { stream, cleanup } = await decryptFileToStream(file.filePath)
+
+    // Set appropriate headers
+    res.setHeader("Content-Disposition", `attachment; filename="${file.fileName}"`)
+    res.setHeader("Content-Type", file.fileType)
+
+    // Pipe the decrypted stream to the response
+    stream.pipe(res)
+
+    // Clean up the temporary file after streaming is complete
+    stream.on("end", cleanup)
+    stream.on("error", cleanup)
   } catch (err) {
     console.error("Error accessing shared file:", err)
     res.status(500).json({ error: "Server error" })
