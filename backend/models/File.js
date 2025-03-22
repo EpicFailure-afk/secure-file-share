@@ -38,6 +38,24 @@ const fileSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  // New fields for verification
+  verificationCode: {
+    type: String,
+    default: null,
+  },
+  verificationCodeExpiry: {
+    type: Date,
+    default: null,
+  },
+  accessGranted: [
+    {
+      ipAddress: String,
+      accessTime: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
 })
 
 module.exports = mongoose.model("File", fileSchema)

@@ -38,6 +38,10 @@ body,
   z-index: 1;
 }
 
+.content.full-height {
+  padding-top: 0; /* No navbar padding for share page */
+}
+
 /* Background styles for the entire app */
 body {
   background-color: #121212;
@@ -109,6 +113,10 @@ body:not(.dark)::before {
 @media (max-width: 768px) {
   .content {
     padding-top: 60px;
+  }
+
+  .content.full-height {
+    padding-top: 0;
   }
 }
 

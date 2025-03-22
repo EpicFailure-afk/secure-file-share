@@ -18,6 +18,8 @@ import {
   FaFileAudio,
   FaFileCode,
   FaUserEdit,
+  FaCopy,
+  FaCheck,
 } from "react-icons/fa"
 import styles from "./Dashboard.module.css"
 import { getUserFiles, uploadFile, deleteFile, shareFile, downloadFile, getUserProfile } from "../api"
@@ -32,6 +34,7 @@ const Dashboard = () => {
   const [shareUrl, setShareUrl] = useState(null)
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
+  const [copied, setCopied] = useState(false)
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
 
@@ -207,7 +210,8 @@ const Dashboard = () => {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text)
-    alert("Share link copied to clipboard!")
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
@@ -355,9 +359,13 @@ const Dashboard = () => {
           <div className={styles.modal}>
             <h3>Share File</h3>
             <p>Share this link with others to give them access to "{selectedFile?.fileName}"</p>
+            <div className={styles.shareInfo}>
+              <p>The recipient will need to request access, and you'll receive a verification code by email.</p>
+              <p>You'll need to provide them with this code to grant them access to the file.</p>
+            </div>
             <div className={styles.shareLink}>
               <input type="text" value={shareUrl} readOnly />
-              <button onClick={() => copyToClipboard(shareUrl)}>Copy</button>
+              <button onClick={() => copyToClipboard(shareUrl)}>{copied ? <FaCheck /> : <FaCopy />}</button>
             </div>
             <div className={styles.modalActions}>
               <button className={styles.closeBtn} onClick={() => setShareModalOpen(false)}>

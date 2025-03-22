@@ -4,8 +4,10 @@ const path = require("path")
 const fs = require("fs")
 const crypto = require("crypto")
 const File = require("../models/File")
+const User = require("../models/User")
 const authMiddleware = require("../middleware/auth")
 const { encryptFile, decryptFileToStream } = require("../utils/encryption")
+const { sendShareVerificationEmail } = require("../utils/shareNotification")
 
 const router = express.Router()
 
@@ -178,8 +180,35 @@ router.post("/:id/share", authMiddleware, async (req, res) => {
   }
 })
 
-// Access shared file (public route)
-router.get("/share/:token", async (req, res) => {
+// Get shared file info (public route)
+router.get("/share/:token/info", async (req, res) => {
+  try {
+    const file = await File.findOne({
+      shareToken: req.params.token,
+      shareExpiry: { $gt: new Date() },
+    }).populate("userId", "username")
+
+    if (!file) {
+      return res.status(404).json({ error: "Shared file not found or link expired" })
+    }
+
+    // Return basic file info
+    res.json({
+      fileInfo: {
+        fileName: file.fileName,
+        fileType: file.fileType,
+        fileSize: file.fileSize,
+        ownerName: file.userId.username,
+      },
+    })
+  } catch (err) {
+    console.error("Error getting shared file info:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Request access to shared file (public route)
+router.post("/share/:token/request-access", async (req, res) => {
   try {
     const file = await File.findOne({
       shareToken: req.params.token,
@@ -188,6 +217,99 @@ router.get("/share/:token", async (req, res) => {
 
     if (!file) {
       return res.status(404).json({ error: "Shared file not found or link expired" })
+    }
+
+    // Generate a 6-digit verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
+
+    // Set expiry to 30 minutes from now
+    const verificationCodeExpiry = new Date()
+    verificationCodeExpiry.setMinutes(verificationCodeExpiry.getMinutes() + 30)
+
+    // Update file with verification code
+    file.verificationCode = verificationCode
+    file.verificationCodeExpiry = verificationCodeExpiry
+    await file.save()
+
+    // Get requester IP address
+    const requesterIP = req.headers["x-forwarded-for"] || req.connection.remoteAddress
+
+    // Send verification email to file owner
+    const emailSent = await sendShareVerificationEmail(file.userId, file.fileName, verificationCode, requesterIP)
+
+    if (!emailSent) {
+      return res.status(500).json({ error: "Failed to send verification email" })
+    }
+
+    res.json({
+      message: "Access request sent to file owner",
+      expiresAt: verificationCodeExpiry,
+    })
+  } catch (err) {
+    console.error("Error requesting file access:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Verify access code for shared file (public route)
+router.post("/share/:token/verify-access", async (req, res) => {
+  try {
+    const { verificationCode } = req.body
+
+    if (!verificationCode) {
+      return res.status(400).json({ error: "Verification code is required" })
+    }
+
+    const file = await File.findOne({
+      shareToken: req.params.token,
+      shareExpiry: { $gt: new Date() },
+      verificationCode: verificationCode,
+      verificationCodeExpiry: { $gt: new Date() },
+    })
+
+    if (!file) {
+      return res.status(400).json({ error: "Invalid or expired verification code" })
+    }
+
+    // Get requester IP address
+    const requesterIP = req.headers["x-forwarded-for"] || req.connection.remoteAddress
+
+    // Add to access granted list
+    file.accessGranted.push({
+      ipAddress: requesterIP,
+      accessTime: new Date(),
+    })
+
+    await file.save()
+
+    res.json({
+      success: true,
+      message: "Access granted",
+    })
+  } catch (err) {
+    console.error("Error verifying access code:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Download shared file with verification (public route)
+router.get("/share/:token/download", async (req, res) => {
+  try {
+    const { code } = req.query
+
+    if (!code) {
+      return res.status(400).json({ error: "Verification code is required" })
+    }
+
+    const file = await File.findOne({
+      shareToken: req.params.token,
+      shareExpiry: { $gt: new Date() },
+      verificationCode: code,
+      verificationCodeExpiry: { $gt: new Date() },
+    })
+
+    if (!file) {
+      return res.status(400).json({ error: "Invalid or expired verification code" })
     }
 
     // Decrypt the file and get a read stream
@@ -204,7 +326,7 @@ router.get("/share/:token", async (req, res) => {
     stream.on("end", cleanup)
     stream.on("error", cleanup)
   } catch (err) {
-    console.error("Error accessing shared file:", err)
+    console.error("Error downloading shared file:", err)
     res.status(500).json({ error: "Server error" })
   }
 })

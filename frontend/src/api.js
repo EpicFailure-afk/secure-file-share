@@ -276,3 +276,47 @@ export const shareFile = async (fileId) => {
   }
 }
 
+// New Share API functions
+export const getSharedFileInfo = async (shareToken) => {
+  try {
+    const response = await fetch(`${API_URL}/files/share/${shareToken}/info`, {
+      method: "GET",
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Shared File Info Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+export const requestShareAccess = async (shareToken) => {
+  try {
+    const response = await fetch(`${API_URL}/files/share/${shareToken}/request-access`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Request Share Access Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+export const verifyShareAccess = async (shareToken, verificationCode) => {
+  try {
+    const response = await fetch(`${API_URL}/files/share/${shareToken}/verify-access`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ verificationCode }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Verify Share Access Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+

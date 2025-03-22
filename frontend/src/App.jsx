@@ -8,12 +8,14 @@ import Home from "./pages/Home"
 import Dashboard from "./pages/Dashboard"
 import ForgotPassword from "./pages/ForgotPassword"
 import EditProfile from "./pages/EditProfile"
+import SharePage from "./pages/SharePage"
 import Navbar from "./components/Navbar"
 import Footer from "./components/Footer"
 import "./App.css"
 
 const AnimatedRoutes = () => {
   const location = useLocation()
+  const isSharePage = location.pathname.startsWith("/share/")
 
   return (
     <AnimatePresence mode="wait">
@@ -24,24 +26,34 @@ const AnimatedRoutes = () => {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/edit-profile" element={<EditProfile />} />
+        <Route path="/share/:token" element={<SharePage />} />
       </Routes>
     </AnimatePresence>
   )
 }
 
 function App() {
+  const location = useLocation()
+  const isSharePage = location.pathname.startsWith("/share/")
+
+  return (
+    <div className="app-container">
+      {!isSharePage && <Navbar />}
+      <main className={`content ${isSharePage ? "full-height" : ""}`}>
+        <AnimatedRoutes />
+      </main>
+      {!isSharePage && <Footer />}
+    </div>
+  )
+}
+
+const AppWrapper = () => {
   return (
     <Router>
-      <div className="app-container">
-        <Navbar />
-        <main className="content">
-          <AnimatedRoutes />
-        </main>
-        <Footer />
-      </div>
+      <App />
     </Router>
   )
 }
 
-export default App
+export default AppWrapper
 
