@@ -4,7 +4,7 @@ const jwt = require("jsonwebtoken")
 const crypto = require("crypto")
 const User = require("../models/User")
 const Token = require("../models/Token")
-const sendEmail = require("../utils/email")
+const { sendVerificationEmail } = require("../utils/email")
 
 const router = express.Router()
 
@@ -57,11 +57,7 @@ router.post("/request-token", async (req, res) => {
     await tokenDoc.save()
 
     // Send token via email
-    await sendEmail(
-      user.email,
-      "Your Login Verification Code",
-      `Your verification code is: ${loginToken}. This code will expire in 10 minutes.`,
-    )
+    await sendVerificationEmail(user.email, loginToken, "login")
 
     res.json({ success: true, message: "Verification code sent to your email" })
   } catch (err) {
@@ -126,11 +122,7 @@ router.post("/forgot-password", async (req, res) => {
     await tokenDoc.save()
 
     // Send token via email
-    await sendEmail(
-      user.email,
-      "Password Reset Verification Code",
-      `Your password reset code is: ${resetToken}. This code will expire in 10 minutes.`,
-    )
+    await sendVerificationEmail(user.email, resetToken, "reset")
 
     res.json({ success: true, message: "Password reset code sent to your email" })
   } catch (err) {

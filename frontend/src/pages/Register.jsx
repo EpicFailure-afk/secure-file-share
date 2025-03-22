@@ -155,20 +155,33 @@ const Register = () => {
         <AnimatePresence>
           {success && (
             <motion.div
-              className={styles.successPopup}
-              initial={{ y: -50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -50, opacity: 0 }}
-              transition={{ duration: 0.5 }}
+              className={styles.modalOverlay}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
             >
-              <FaCheckCircle className={styles.successIcon} />
-              <div>
-                <h3>Registration Successful!</h3>
-                <p>Your account has been created. You can now log in.</p>
-              </div>
-              <Link to="/login" className={styles.loginNowBtn}>
-                Login Now
-              </Link>
+              <motion.div
+                className={styles.successModal}
+                initial={{ y: 50, opacity: 0, scale: 0.9 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: -50, opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.4, type: "spring" }}
+              >
+                <div className={styles.successHeader}>
+                  <FaCheckCircle className={styles.successIcon} />
+                  <h3>Registration Successful!</h3>
+                </div>
+                <div className={styles.successBody}>
+                  <p>Your account has been created successfully.</p>
+                  <p>You can now log in with your credentials.</p>
+                </div>
+                <div className={styles.successFooter}>
+                  <Link to="/login" className={styles.loginNowBtn}>
+                    Login Now
+                  </Link>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>

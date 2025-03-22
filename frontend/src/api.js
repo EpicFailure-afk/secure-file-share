@@ -211,3 +211,23 @@ export const shareFile = async (fileId) => {
   }
 }
 
+export const getUserProfile = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`${API_URL}/user/profile`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Profile Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+

@@ -19,7 +19,7 @@ import {
   FaFileCode,
 } from "react-icons/fa"
 import styles from "./Dashboard.module.css"
-import { getUserFiles, uploadFile, deleteFile, shareFile, downloadFile } from "../api"
+import { getUserFiles, uploadFile, deleteFile, shareFile, downloadFile, getUserProfile } from "../api"
 
 const Dashboard = () => {
   const [files, setFiles] = useState([])
@@ -32,6 +32,7 @@ const Dashboard = () => {
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const navigate = useNavigate()
+  const [user, setUser] = useState(null)
 
   useEffect(() => {
     const token = localStorage.getItem("token")
@@ -40,7 +41,43 @@ const Dashboard = () => {
       return
     }
 
-    fetchFiles()
+    const fetchData = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        // Fetch user profile
+        const profileResponse = await getUserProfile()
+        if (profileResponse.error) {
+          if (profileResponse.error === "Unauthorized") {
+            localStorage.removeItem("token")
+            navigate("/login")
+            return
+          }
+        } else {
+          setUser(profileResponse.user)
+        }
+
+        // Fetch files
+        const filesResponse = await getUserFiles()
+        if (filesResponse.error) {
+          setError(filesResponse.error)
+          if (filesResponse.error === "Unauthorized") {
+            localStorage.removeItem("token")
+            navigate("/login")
+          }
+        } else {
+          setFiles(filesResponse.files || [])
+        }
+      } catch (err) {
+        setError("Failed to fetch data. Please try again.")
+        console.error("Fetch Data Error:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
   }, [navigate])
 
   const fetchFiles = async () => {
@@ -180,7 +217,19 @@ const Dashboard = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h1>My Files</h1>
+        <div className={styles.headerContent}>
+          {user && (
+            <motion.h2
+              className={styles.welcomeMessage}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              Welcome back, {user.username}
+            </motion.h2>
+          )}
+          <h1>My Files</h1>
+        </div>
         <div className={styles.uploadContainer}>
           <label htmlFor="fileUpload" className={styles.uploadBtn}>
             <FaUpload /> Upload File

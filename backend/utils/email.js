@@ -1,6 +1,7 @@
 const nodemailer = require("nodemailer")
+const { generateVerificationEmail } = require("./emailTemplates")
 
-const sendEmail = async (to, subject, text) => {
+const sendEmail = async (to, subject, text, html) => {
   try {
     // Create a test account if no SMTP configuration is provided
     let testAccount
@@ -31,13 +32,23 @@ const sendEmail = async (to, subject, text) => {
       })
     }
 
-    // Send email
-    const info = await transporter.sendMail({
+    // Email options
+    const mailOptions = {
       from: process.env.EMAIL_FROM || '"SecureShare" <security@secureshare.com>',
       to,
       subject,
-      text,
-    })
+    }
+
+    // Add text or HTML content
+    if (html) {
+      mailOptions.html = html
+      mailOptions.text = text // Fallback plain text
+    } else {
+      mailOptions.text = text
+    }
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions)
 
     console.log("Message sent: %s", info.messageId)
 
@@ -53,5 +64,18 @@ const sendEmail = async (to, subject, text) => {
   }
 }
 
-module.exports = sendEmail
+// Helper function to send verification code emails
+const sendVerificationEmail = async (email, code, type = "login") => {
+  const subject = type === "login" ? "Your SecureShare Login Verification Code" : "Your SecureShare Password Reset Code"
+
+  const plainText = `Your verification code is: ${code}. This code will expire in 10 minutes.`
+  const htmlContent = generateVerificationEmail(code, type)
+
+  return sendEmail(email, subject, plainText, htmlContent)
+}
+
+module.exports = {
+  sendEmail,
+  sendVerificationEmail,
+}
 
