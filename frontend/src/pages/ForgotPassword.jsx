@@ -1,13 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaKey } from "react-icons/fa"
 import styles from "./ForgotPassword.module.css"
 import { requestPasswordReset, verifyPasswordReset } from "../api"
 
 const ForgotPassword = () => {
+  const navigate = useNavigate()
   const [email, setEmail] = useState("")
   const [token, setToken] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -75,17 +76,17 @@ const ForgotPassword = () => {
       }
 
       if (response.success) {
-        setSuccess("Password reset successful! You can now login with your new password.")
+        setSuccess("Password reset successful! Redirecting to login page...")
         // Clear form
         setEmail("")
         setToken("")
         setNewPassword("")
         setConfirmPassword("")
-        // Return to step 1 after 5 seconds
+
+        // Redirect to login page after 2 seconds
         setTimeout(() => {
-          setStep(1)
-          setSuccess(null)
-        }, 5000)
+          navigate("/login")
+        }, 2000)
       } else {
         setError("Failed to reset password. Please try again.")
       }

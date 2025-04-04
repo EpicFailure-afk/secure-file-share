@@ -71,6 +71,65 @@
   margin: 0;
 }
 
+.usernameContainer {
+  position: relative;
+  display: inline-block;
+}
+
+.userTooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  width: 220px;
+  text-align: center;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  margin-bottom: 10px;
+}
+
+.userTooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 8px;
+  border-style: solid;
+  border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
+}
+
+.usernameContainer:hover .userTooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltipTitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #ff8a00;
+}
+
+.tooltipInfo {
+  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.tooltipDate {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
 .uploadContainer {
   position: relative;
 }

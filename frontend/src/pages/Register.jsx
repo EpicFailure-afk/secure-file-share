@@ -1,13 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaCheckCircle } from "react-icons/fa"
 import styles from "./Register.module.css"
 import { registerUser } from "../api"
 
 const Register = () => {
+  const navigate = useNavigate()
   const [userData, setUserData] = useState({
     username: "",
     email: "",
@@ -39,11 +40,22 @@ const Register = () => {
       const response = await registerUser(userData)
 
       if (response.error) {
-        setError(response.error)
+        // Check for specific error messages
+        if (response.error.includes("User already exists")) {
+          setError("An account with this email already exists. Please use a different email.")
+        } else if (response.error.includes("username") && response.error.includes("taken")) {
+          setError("This username is already taken. Please choose a different username.")
+        } else {
+          setError(response.error)
+        }
       } else {
         setSuccess(true)
         setUserData({ username: "", email: "", password: "", confirmPassword: "" })
-        setTimeout(() => setSuccess(false), 5000)
+
+        // Redirect to login page after 2 seconds
+        setTimeout(() => {
+          navigate("/login")
+        }, 2000)
       }
     } catch (err) {
       setError("Network error. Please check your connection.")
@@ -174,12 +186,7 @@ const Register = () => {
                 </div>
                 <div className={styles.successBody}>
                   <p>Your account has been created successfully.</p>
-                  <p>You can now log in with your credentials.</p>
-                </div>
-                <div className={styles.successFooter}>
-                  <Link to="/login" className={styles.loginNowBtn}>
-                    Login Now
-                  </Link>
+                  <p>Redirecting to login page...</p>
                 </div>
               </motion.div>
             </motion.div>

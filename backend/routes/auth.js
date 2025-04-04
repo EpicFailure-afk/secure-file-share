@@ -13,9 +13,11 @@ router.post("/register", async (req, res) => {
   try {
     const { username, email, password } = req.body
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email })
-    if (existingUser) return res.status(400).json({ message: "User already exists" })
+    // Check if email already exists
+    const existingEmail = await User.findOne({ email })
+    if (existingEmail) return res.status(400).json({ error: "User with this email already exists" })
+
+    // No check for username uniqueness - allowing duplicate usernames
 
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10)
@@ -27,7 +29,7 @@ router.post("/register", async (req, res) => {
     res.status(201).json({ message: "User registered successfully" })
   } catch (err) {
     console.error("Error in register:", err)
-    res.status(500).json({ message: "Server error" })
+    res.status(500).json({ error: "Server error" })
   }
 })
 

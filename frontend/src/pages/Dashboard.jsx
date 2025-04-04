@@ -227,20 +227,35 @@ const Dashboard = () => {
             <motion.div className={styles.welcomeWrapper}>
               <motion.h2 className={styles.welcomeMessage}>
                 Welcome back,{" "}
-                <motion.span
-                  className={styles.animatedUsername}
-                  initial={{ backgroundPosition: "0% 50%" }}
-                  animate={{
-                    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-                  }}
-                  transition={{
-                    duration: 5,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "linear",
-                  }}
-                >
-                  {user.username}
-                </motion.span>
+                <div className={styles.usernameContainer}>
+                  <motion.span
+                    className={styles.animatedUsername}
+                    initial={{ backgroundPosition: "0% 50%" }}
+                    animate={{
+                      backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                    }}
+                    transition={{
+                      duration: 5,
+                      repeat: Number.POSITIVE_INFINITY,
+                      ease: "linear",
+                    }}
+                  >
+                    {user.username}
+                  </motion.span>
+                  <div className={styles.userTooltip}>
+                    <div className={styles.tooltipTitle}>User Information</div>
+                    <div className={styles.tooltipInfo}>Username: {user.username}</div>
+                    {/* Email removed for security purposes */}
+                    <div className={styles.tooltipDate}>
+                      Member since:{" "}
+                      {new Date(user.createdAt).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </div>
+                  </div>
+                </div>
               </motion.h2>
               <Link to="/edit-profile" className={styles.editProfileLink}>
                 <FaUserEdit /> Edit your data

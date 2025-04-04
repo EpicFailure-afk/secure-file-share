@@ -1,9 +1,19 @@
 "use client"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Link } from "react-router-dom"
+import { FaUser } from "react-icons/fa"
 import styles from "./Home.module.css"
 
 const Home = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  useEffect(() => {
+    // Check if user is logged in
+    const token = localStorage.getItem("token")
+    setIsLoggedIn(!!token)
+  }, [])
+
   return (
     <div className={styles.homeContainer}>
       <motion.div
@@ -32,12 +42,22 @@ const Home = () => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.6, duration: 0.5 }}
         >
-          <Link to="/register" className={styles.primaryBtn}>
-            Get Started
-          </Link>
-          <Link to="/login" className={styles.secondaryBtn}>
-            Sign In
-          </Link>
+          {isLoggedIn ? (
+            <>
+              <Link to="/dashboard" className={styles.profileButton}>
+                <FaUser className={styles.profileIcon} /> Back to My Dashboard
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link to="/register" className={styles.primaryBtn}>
+                Get Started
+              </Link>
+              <Link to="/login" className={styles.secondaryBtn}>
+                Sign In
+              </Link>
+            </>
+          )}
         </motion.div>
       </motion.div>
 
