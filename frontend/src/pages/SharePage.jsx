@@ -79,8 +79,52 @@ const SharePage = () => {
     }
   }
 
-  const handleDownload = () => {
-    window.location.href = `/api/files/share/${token}/download?code=${verificationCode}`
+  const handleDownload = async () => {
+    try {
+      // Show loading state
+      setSubmitting(true)
+
+      // Make a fetch request to the backend API
+      const response = await fetch(`http://localhost:5000/api/files/share/${token}/download?code=${verificationCode}`, {
+        method: "GET",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to download file")
+      }
+
+      // Get the filename from the Content-Disposition header if available
+      let filename = fileInfo.fileName
+      const contentDisposition = response.headers.get("Content-Disposition")
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1]
+        }
+      }
+
+      // Convert the response to a blob
+      const blob = await response.blob()
+
+      // Create a download link and trigger it
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.style.display = "none"
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+
+      // Clean up
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      setSubmitting(false)
+    } catch (err) {
+      setError("Failed to download file. Please try again.")
+      console.error("Download Error:", err)
+      setSubmitting(false)
+    }
   }
 
   if (loading) {
@@ -185,8 +229,14 @@ const SharePage = () => {
               </div>
               <h3>Access Granted!</h3>
               <p>You now have access to download this file.</p>
-              <button className={styles.downloadButton} onClick={handleDownload}>
-                <FaDownload /> Download File
+              <button className={styles.downloadButton} onClick={handleDownload} disabled={submitting}>
+                {submitting ? (
+                  "Downloading..."
+                ) : (
+                  <>
+                    <FaDownload /> Download File
+                  </>
+                )}
               </button>
             </motion.div>
           )}
