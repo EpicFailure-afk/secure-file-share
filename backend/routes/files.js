@@ -35,7 +35,7 @@ const upload = multer({
   },
 })
 
-// Get all files for the authenticated user
+//! Get all files for the authenticated user
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const files = await File.find({ userId: req.user.userId }).sort({ uploadDate: -1 })
@@ -87,7 +87,7 @@ router.post("/upload", authMiddleware, upload.single("file"), async (req, res) =
   }
 })
 
-// Download a file
+//! Download a file
 router.get("/:id/download", authMiddleware, async (req, res) => {
   try {
     const file = await File.findOne({
@@ -118,7 +118,7 @@ router.get("/:id/download", authMiddleware, async (req, res) => {
   }
 })
 
-// Delete a file
+//! Delete a file
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const file = await File.findOne({

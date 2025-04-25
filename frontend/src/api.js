@@ -7,7 +7,7 @@ export const registerUser = async (userData) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(userData),
-    })
+    }) 
     return await response.json()
   } catch (error) {
     console.error("Register Error:", error)
@@ -77,7 +77,7 @@ export const verifyPasswordReset = async (resetData) => {
   }
 }
 
-// User profile API calls
+//! User profile API calls
 export const getUserProfile = async () => {
   try {
     const token = localStorage.getItem("token")

@@ -8,7 +8,7 @@ const { sendVerificationEmail } = require("../utils/email")
 
 const router = express.Router()
 
-// Register a new user
+//! Register a new user
 router.post("/register", async (req, res) => {
   try {
     const { username, email, password } = req.body
@@ -17,10 +17,8 @@ router.post("/register", async (req, res) => {
     const existingEmail = await User.findOne({ email })
     if (existingEmail) return res.status(400).json({ error: "User with this email already exists" })
 
-    // No check for username uniqueness - allowing duplicate usernames
-
     // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcrypt.hash(password, 10)   //? hashing the password
 
     // Create new user
     const newUser = new User({ username, email, password: hashedPassword })
@@ -33,7 +31,7 @@ router.post("/register", async (req, res) => {
   }
 })
 
-// Request login token (step 1 of 2-step login)
+//! Request login token (step 1 of 2-step login)
 router.post("/request-token", async (req, res) => {
   try {
     const { email, password } = req.body
@@ -68,7 +66,7 @@ router.post("/request-token", async (req, res) => {
   }
 })
 
-// Verify login token (step 2 of 2-step login)
+//! Verify login token (step 2 of 2-step login)
 router.post("/verify-token", async (req, res) => {
   try {
     const { email, token } = req.body
@@ -102,7 +100,7 @@ router.post("/verify-token", async (req, res) => {
   }
 })
 
-// Request password reset
+//! Request password reset
 router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body
