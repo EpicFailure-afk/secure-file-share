@@ -128,6 +128,27 @@
   transform: rotate(15deg);
 }
 
+/* Logout Button */
+.logoutBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  background: rgba(229, 46, 113, 0.2);
+  border: 1px solid rgba(229, 46, 113, 0.3);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.logoutBtn:hover {
+  background: rgba(229, 46, 113, 0.3);
+  transform: translateY(-2px);
+}
+
 /* Mobile Menu */
 .mobileMenu {
   display: none;
@@ -162,6 +183,12 @@
 .mobileMenu a.active {
   background: rgba(255, 255, 255, 0.1);
   color: #ff8a00;
+}
+
+.mobileMenu .logoutBtn {
+  margin: 15px auto;
+  width: 80%;
+  justify-content: center;
 }
 
 /* Mobile Toggle Button */
@@ -213,4 +240,3 @@
     height: 30px;
   }
 }
-

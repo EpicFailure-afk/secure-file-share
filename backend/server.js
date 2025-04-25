@@ -41,12 +41,14 @@ const authRoutes = require("./routes/auth")
 const userRoutes = require("./routes/user")
 const adminRoutes = require("./routes/admin")
 const fileRoutes = require("./routes/files")
+const contactRoutes = require("./routes/contact")
 
 // Use routes
 app.use("/api/auth", authRoutes)
 app.use("/api/user", userRoutes)
 app.use("/api/admin", adminRoutes)
 app.use("/api/files", fileRoutes)
+app.use("/api/contact", contactRoutes)
 
 // Default route
 app.get("/", (req, res) => {
@@ -64,4 +66,3 @@ const PORT = process.env.PORT || 5000
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`)
 })
-

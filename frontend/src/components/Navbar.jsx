@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Link, useLocation } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { FaSun, FaMoon, FaBars, FaTimes } from "react-icons/fa"
+import { FaSun, FaMoon, FaBars, FaTimes, FaSignOutAlt } from "react-icons/fa"
 import styles from "./Navbar.module.css"
 import logo from "../assets/image.png"
 
@@ -12,7 +12,9 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const [scrolled, setScrolled] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
 
   useEffect(() => {
     document.body.classList.toggle("dark", darkMode)
@@ -35,14 +37,23 @@ const Navbar = () => {
       }
     }
 
+    // Check if user is logged in
+    const checkLoginStatus = () => {
+      const token = localStorage.getItem("token")
+      setIsLoggedIn(!!token)
+    }
+
     window.addEventListener("resize", handleResize)
     window.addEventListener("scroll", handleScroll)
+
+    // Check login status initially and whenever location changes
+    checkLoginStatus()
 
     return () => {
       window.removeEventListener("resize", handleResize)
       window.removeEventListener("scroll", handleScroll)
     }
-  }, [])
+  }, [location])
 
   // Close mobile menu when changing routes
   useEffect(() => {
@@ -51,6 +62,12 @@ const Navbar = () => {
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem("token")
+    setIsLoggedIn(false)
+    navigate("/")
   }
 
   return (
@@ -80,12 +97,28 @@ const Navbar = () => {
           <Link to="/" className={location.pathname === "/" ? styles.active : ""}>
             Home
           </Link>
-          <Link to="/register" className={location.pathname === "/register" ? styles.active : ""}>
-            Register
+          <Link to="/contact" className={location.pathname === "/contact" ? styles.active : ""}>
+            Contact Us
           </Link>
-          <Link to="/login" className={location.pathname === "/login" ? styles.active : ""}>
-            Login
-          </Link>
+          {isLoggedIn ? (
+            <>
+              <Link to="/dashboard" className={location.pathname === "/dashboard" ? styles.active : ""}>
+                Dashboard
+              </Link>
+              <button className={styles.logoutBtn} onClick={handleLogout}>
+                <FaSignOutAlt /> Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/register" className={location.pathname === "/register" ? styles.active : ""}>
+                Register
+              </Link>
+              <Link to="/login" className={location.pathname === "/login" ? styles.active : ""}>
+                Login
+              </Link>
+            </>
+          )}
           <button
             className={styles.toggleBtn}
             onClick={toggleDarkMode}
@@ -100,12 +133,28 @@ const Navbar = () => {
         <Link to="/" className={location.pathname === "/" ? styles.active : ""}>
           Home
         </Link>
-        <Link to="/register" className={location.pathname === "/register" ? styles.active : ""}>
-          Register
+        <Link to="/contact" className={location.pathname === "/contact" ? styles.active : ""}>
+          Contact Us
         </Link>
-        <Link to="/login" className={location.pathname === "/login" ? styles.active : ""}>
-          Login
-        </Link>
+        {isLoggedIn ? (
+          <>
+            <Link to="/dashboard" className={location.pathname === "/dashboard" ? styles.active : ""}>
+              Dashboard
+            </Link>
+            <button className={styles.logoutBtn} onClick={handleLogout}>
+              <FaSignOutAlt /> Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/register" className={location.pathname === "/register" ? styles.active : ""}>
+              Register
+            </Link>
+            <Link to="/login" className={location.pathname === "/login" ? styles.active : ""}>
+              Login
+            </Link>
+          </>
+        )}
         <button
           className={styles.toggleBtn}
           onClick={toggleDarkMode}
@@ -119,4 +168,3 @@ const Navbar = () => {
 }
 
 export default Navbar
-

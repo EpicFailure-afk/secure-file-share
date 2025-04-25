@@ -3,6 +3,7 @@
 import { FaGithub, FaLinkedin, FaTwitter, FaHeart } from "react-icons/fa"
 import { motion } from "framer-motion"
 import styles from "./Footer.module.css"
+import { Link } from "react-router-dom"
 
 const Footer = () => {
   return (
@@ -24,7 +25,7 @@ const Footer = () => {
           <div className={styles.linkGroup}>
             <h4>Support</h4>
             <a href="#">Help Center</a>
-            <a href="#">Contact Us</a>
+            <Link to="/contact">Contact Us</Link>
             <a href="#">Privacy Policy</a>
           </div>
         </div>
@@ -69,4 +70,3 @@ const Footer = () => {
 }
 
 export default Footer
-

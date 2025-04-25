@@ -280,7 +280,7 @@ const SharePage = () => {
           <div className={styles.footerLinks}>
             <a href="#">Privacy Policy</a>
             <a href="#">Terms of Service</a>
-            <a href="#">Contact Us</a>
+            <Link to="/contact">Contact Us</Link>
           </div>
         </div>
       </div>
@@ -324,4 +324,3 @@ const formatFileType = (mimeType) => {
 }
 
 export default SharePage
-

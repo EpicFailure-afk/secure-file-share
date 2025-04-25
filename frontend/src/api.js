@@ -7,7 +7,7 @@ export const registerUser = async (userData) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(userData),
-    }) 
+    })
     return await response.json()
   } catch (error) {
     console.error("Register Error:", error)
@@ -320,3 +320,19 @@ export const verifyShareAccess = async (shareToken, verificationCode) => {
   }
 }
 
+// Contact form API
+export const sendContactForm = async (formData) => {
+  try {
+    const response = await fetch(`${API_URL}/contact`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Contact Form Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
