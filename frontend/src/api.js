@@ -1,9 +1,7 @@
-const API_URL = "http://localhost:5000/api"
-
 // Auth API calls
 export const registerUser = async (userData) => {
   try {
-    const response = await fetch(`${API_URL}/auth/register`, {
+    const response = await fetch(`/api/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(userData),
@@ -17,7 +15,7 @@ export const registerUser = async (userData) => {
 
 export const requestLoginToken = async (userData) => {
   try {
-    const response = await fetch(`${API_URL}/auth/request-token`, {
+    const response = await fetch(`/api/auth/request-token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(userData),
@@ -31,7 +29,7 @@ export const requestLoginToken = async (userData) => {
 
 export const verifyLoginToken = async (verificationData) => {
   try {
-    const response = await fetch(`${API_URL}/auth/verify-token`, {
+    const response = await fetch(`/api/auth/verify-token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(verificationData),
@@ -51,7 +49,7 @@ export const verifyLoginToken = async (verificationData) => {
 
 export const requestPasswordReset = async (resetData) => {
   try {
-    const response = await fetch(`${API_URL}/auth/forgot-password`, {
+    const response = await fetch(`/api/auth/forgot-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(resetData),
@@ -65,7 +63,7 @@ export const requestPasswordReset = async (resetData) => {
 
 export const verifyPasswordReset = async (resetData) => {
   try {
-    const response = await fetch(`${API_URL}/auth/reset-password`, {
+    const response = await fetch(`/api/auth/reset-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(resetData),
@@ -85,7 +83,7 @@ export const getUserProfile = async () => {
       return { error: "Unauthorized" }
     }
 
-    const response = await fetch(`${API_URL}/user/profile`, {
+    const response = await fetch(`/api/user/profile`, {
       method: "GET",
       headers: {
         Authorization: token,
@@ -105,7 +103,7 @@ export const updateUserProfile = async (profileData) => {
       return { error: "Unauthorized" }
     }
 
-    const response = await fetch(`${API_URL}/user/update-profile`, {
+    const response = await fetch(`/api/user/update-profile`, {
       method: "PUT",
       headers: {
         Authorization: token,
@@ -127,7 +125,7 @@ export const updateUserPassword = async (passwordData) => {
       return { error: "Unauthorized" }
     }
 
-    const response = await fetch(`${API_URL}/user/update-password`, {
+    const response = await fetch(`/api/user/update-password`, {
       method: "PUT",
       headers: {
         Authorization: token,
@@ -150,7 +148,7 @@ export const getUserFiles = async () => {
       return { error: "Unauthorized" }
     }
 
-    const response = await fetch(`${API_URL}/files`, {
+    const response = await fetch(`/api/files`, {
       method: "GET",
       headers: {
         Authorization: token,
@@ -192,7 +190,7 @@ export const uploadFile = async (formData, progressCallback) => {
         reject(new Error("Upload failed"))
       })
 
-      xhr.open("POST", `${API_URL}/files/upload`)
+      xhr.open("POST", `/api/files/upload`)
       xhr.setRequestHeader("Authorization", token)
       xhr.send(formData)
     })
@@ -209,7 +207,7 @@ export const deleteFile = async (fileId) => {
       return { error: "Unauthorized" }
     }
 
-    const response = await fetch(`${API_URL}/files/${fileId}`, {
+    const response = await fetch(`/api/files/${fileId}`, {
       method: "DELETE",
       headers: {
         Authorization: token,
@@ -229,7 +227,7 @@ export const downloadFile = async (fileId, fileName) => {
       throw new Error("Unauthorized")
     }
 
-    const response = await fetch(`${API_URL}/files/${fileId}/download`, {
+    const response = await fetch(`/api/files/${fileId}/download`, {
       method: "GET",
       headers: {
         Authorization: token,
@@ -262,7 +260,7 @@ export const shareFile = async (fileId) => {
       return { error: "Unauthorized" }
     }
 
-    const response = await fetch(`${API_URL}/files/${fileId}/share`, {
+    const response = await fetch(`/api/files/${fileId}/share`, {
       method: "POST",
       headers: {
         Authorization: token,
@@ -279,7 +277,7 @@ export const shareFile = async (fileId) => {
 // New Share API functions
 export const getSharedFileInfo = async (shareToken) => {
   try {
-    const response = await fetch(`${API_URL}/files/share/${shareToken}/info`, {
+    const response = await fetch(`/api/files/share/${shareToken}/info`, {
       method: "GET",
     })
     return await response.json()
@@ -291,7 +289,7 @@ export const getSharedFileInfo = async (shareToken) => {
 
 export const requestShareAccess = async (shareToken) => {
   try {
-    const response = await fetch(`${API_URL}/files/share/${shareToken}/request-access`, {
+    const response = await fetch(`/api/files/share/${shareToken}/request-access`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -306,7 +304,7 @@ export const requestShareAccess = async (shareToken) => {
 
 export const verifyShareAccess = async (shareToken, verificationCode) => {
   try {
-    const response = await fetch(`${API_URL}/files/share/${shareToken}/verify-access`, {
+    const response = await fetch(`/api/files/share/${shareToken}/verify-access`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -323,7 +321,7 @@ export const verifyShareAccess = async (shareToken, verificationCode) => {
 // Contact form API
 export const sendContactForm = async (formData) => {
   try {
-    const response = await fetch(`${API_URL}/contact`, {
+    const response = await fetch(`/api/contact`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
