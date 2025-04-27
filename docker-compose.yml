@@ -1,0 +1,59 @@
+services:
+  backend:
+      container_name: backend
+      build:
+        context: .
+        dockerfile: Dockerfile
+        target: final
+      environment:
+        - NODE_ENV=production
+        - MONGO_URI=${MONGO_URI}
+        - JWT_SECRET=${JWT_SECRET}
+        - PORT=${PORT}
+        - SMTP_HOST=${SMTP_HOST}
+        - SMTP_PORT=${SMTP_PORT}
+        - SMTP_SECURE=${SMTP_SECURE}
+        - SMTP_USER=${SMTP_USER}
+        - SMTP_PASS=${SMTP_PASS}
+        - EMAIL_FROM=${EMAIL_FROM}
+        - APP_URL=${APP_URL}
+        - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      ports:
+      - "5000:5000"   # expose backend separately here
+      networks:
+        - app_network
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"] 
+        interval: 10s
+        timeout: 5s
+        retries: 3
+
+  nginx:
+    container_name: nginx
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: nginx
+    ports:
+      - "8800:80"
+      - "4443:443"
+    networks:
+      - app_network
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    command: >
+      /bin/sh -c "
+      chmod 600 /etc/nginx/ssl/* &
+      nginx -g 'daemon off;'
+      "
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
