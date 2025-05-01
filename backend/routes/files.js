@@ -171,7 +171,7 @@ router.post("/:id/share", authMiddleware, async (req, res) => {
     await file.save()
 
     // Generate share URL
-    const shareUrl = `${"http://localhost:8800"}/share/${shareToken}`
+    const shareUrl = `${process.env.APP_URL || "http://localhost:5173"}/share/${shareToken}`
 
     res.json({ shareUrl, expiresAt: shareExpiry })
   } catch (err) {
