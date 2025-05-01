@@ -276,7 +276,7 @@ export const shareFile = async (fileId) => {
   }
 }
 
-// New Share API functions
+//! New Share API functions
 export const getSharedFileInfo = async (shareToken) => {
   try {
     const response = await fetch(`/api/files/share/${shareToken}/info`, {
