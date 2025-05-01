@@ -19,7 +19,7 @@ app.use(express.json())
 
 // Configure CORS properly
 const corsOptions = {
-  origin: "http://localhost:8800",  //? port --> 5173 
+  origin: ["http://localhost:5173", "http://localhost:8800", "http://frontend:5173"],  //? port --> 5173 
   credentials: true,
 }
 app.use(cors(corsOptions))
