@@ -66,3 +66,9 @@ const PORT = process.env.PORT || 5000
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`)
 })
+
+// Start the frontend
+const frontend = 8800
+app.listen(frontend, () => {
+  console.log(`website is running on http://localhost:${frontend}`)
+})
