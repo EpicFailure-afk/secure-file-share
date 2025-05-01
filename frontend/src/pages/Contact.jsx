@@ -101,7 +101,7 @@ const Contact = () => {
               <FaPhone className={styles.infoIcon} />
               <div className={styles.infoText}>
                 <h3>Phone</h3>
-                <p>+1 (555) 123-4567</p>
+                <p>+20 1062 555 816</p>
               </div>
             </div>
 
@@ -109,7 +109,7 @@ const Contact = () => {
               <FaMapMarkerAlt className={styles.infoIcon} />
               <div className={styles.infoText}>
                 <h3>Address</h3>
-                <p>123 Security Street, Digital City, 10101</p>
+                <p>Delta UNIV</p>
               </div>
             </div>
 
@@ -117,7 +117,7 @@ const Contact = () => {
               <FaClock className={styles.infoIcon} />
               <div className={styles.infoText}>
                 <h3>Business Hours</h3>
-                <p>Monday - Friday: 9AM - 5PM</p>
+                <p>Full Time</p>
               </div>
             </div>
 
