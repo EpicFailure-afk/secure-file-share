@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { FaSun, FaMoon, FaBars, FaTimes, FaSignOutAlt } from "react-icons/fa"
+import { FaSun, FaMoon, FaBars, FaTimes, FaSignOutAlt, FaUserShield } from "react-icons/fa"
 import styles from "./Navbar.module.css"
 import logo from "../assets/image.png"
+import { getUserProfile } from "../api"
 
 const Navbar = () => {
   const [darkMode, setDarkMode] = useState(localStorage.getItem("darkMode") === "true")
@@ -13,6 +14,7 @@ const Navbar = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const [scrolled, setScrolled] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -38,9 +40,24 @@ const Navbar = () => {
     }
 
     // Check if user is logged in
-    const checkLoginStatus = () => {
+    const checkLoginStatus = async () => {
       const token = localStorage.getItem("token")
       setIsLoggedIn(!!token)
+      
+      if (token) {
+        try {
+          const profile = await getUserProfile()
+          if (profile.user?.role === "admin") {
+            setIsAdmin(true)
+          } else {
+            setIsAdmin(false)
+          }
+        } catch (err) {
+          setIsAdmin(false)
+        }
+      } else {
+        setIsAdmin(false)
+      }
     }
 
     window.addEventListener("resize", handleResize)
@@ -67,6 +84,7 @@ const Navbar = () => {
   const handleLogout = () => {
     localStorage.removeItem("token")
     setIsLoggedIn(false)
+    setIsAdmin(false)
     navigate("/")
   }
 
@@ -105,6 +123,11 @@ const Navbar = () => {
               <Link to="/dashboard" className={location.pathname === "/dashboard" ? styles.active : ""}>
                 Dashboard
               </Link>
+              {isAdmin && (
+                <Link to="/admin" className={`${location.pathname === "/admin" ? styles.active : ""} ${styles.adminLink}`}>
+                  <FaUserShield /> Admin
+                </Link>
+              )}
               <button className={styles.logoutBtn} onClick={handleLogout}>
                 <FaSignOutAlt /> Logout
               </button>
@@ -141,6 +164,11 @@ const Navbar = () => {
             <Link to="/dashboard" className={location.pathname === "/dashboard" ? styles.active : ""}>
               Dashboard
             </Link>
+            {isAdmin && (
+              <Link to="/admin" className={`${location.pathname === "/admin" ? styles.active : ""} ${styles.adminLink}`}>
+                <FaUserShield /> Admin
+              </Link>
+            )}
             <button className={styles.logoutBtn} onClick={handleLogout}>
               <FaSignOutAlt /> Logout
             </button>

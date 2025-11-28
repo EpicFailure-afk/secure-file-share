@@ -336,3 +336,623 @@ export const sendContactForm = async (formData) => {
     return { error: "Network error. Please try again." }
   }
 }
+
+// ============== ADMIN API CALLS ==============
+
+// Get admin dashboard stats
+export const getAdminDashboard = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/dashboard`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Admin Dashboard Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get all users (admin)
+export const getAdminUsers = async (page = 1, limit = 20, search = "") => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const params = new URLSearchParams({ page, limit, search })
+    const response = await fetch(`/api/admin/users?${params}`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Admin Users Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get user details (admin)
+export const getAdminUserDetails = async (userId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/users/${userId}`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Admin User Details Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Update user role (admin)
+export const updateUserRole = async (userId, role) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/users/${userId}/role`, {
+      method: "PUT",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ role }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Update User Role Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Deactivate user (admin)
+export const deactivateUser = async (userId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/users/${userId}/deactivate`, {
+      method: "PUT",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Deactivate User Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Activate user (admin)
+export const activateUser = async (userId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/users/${userId}/activate`, {
+      method: "PUT",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Activate User Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Delete user (admin)
+export const deleteUser = async (userId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/users/${userId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Delete User Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get all files (admin)
+export const getAdminFiles = async (page = 1, limit = 20, filters = {}) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const params = new URLSearchParams({ page, limit, ...filters })
+    const response = await fetch(`/api/admin/files?${params}`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Admin Files Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Revoke file (admin)
+export const adminRevokeFile = async (fileId, reason) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/files/${fileId}/revoke`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ reason }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Admin Revoke File Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Restore file (admin)
+export const adminRestoreFile = async (fileId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/files/${fileId}/restore`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Admin Restore File Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Delete file (admin)
+export const adminDeleteFile = async (fileId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/files/${fileId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Admin Delete File Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Scan file for virus (admin)
+export const scanFile = async (fileId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/files/${fileId}/scan`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Scan File Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Verify file integrity (admin)
+export const verifyFileIntegrity = async (fileId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/files/${fileId}/verify-integrity`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Verify Integrity Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Quarantine file (admin)
+export const quarantineFile = async (fileId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/files/${fileId}/quarantine`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Quarantine File Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Run system integrity check (admin)
+export const runIntegrityCheck = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/integrity-check`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Integrity Check Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Scan pending files (admin)
+export const scanPendingFiles = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/scan/pending`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Scan Pending Files Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Cleanup expired files (admin)
+export const cleanupExpiredFiles = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/cleanup/expired`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ deleteFromDisk: true }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Cleanup Expired Files Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get audit logs (admin)
+export const getAuditLogs = async (page = 1, limit = 50, filters = {}) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const params = new URLSearchParams({ page, limit, ...filters })
+    const response = await fetch(`/api/admin/audit-logs?${params}`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Audit Logs Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get system settings (admin)
+export const getSystemSettings = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/settings`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("System Settings Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Update system setting (admin)
+export const updateSystemSetting = async (key, value) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/admin/settings/${key}`, {
+      method: "PUT",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ value }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Update System Setting Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// ============== FILE MANAGEMENT API CALLS ==============
+
+// Set file expiration with flexible time units
+export const setFileExpiration = async (fileId, value, unit = "days") => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/files/${fileId}/expiration`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ value, unit }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Set File Expiration Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Pre-scan file before download
+export const preScanFile = async (fileId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/files/${fileId}/pre-scan`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Pre-Scan File Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Download file with scan verification
+export const downloadFileWithScan = async (fileId, fileName, skipScan = false) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      throw new Error("Unauthorized")
+    }
+
+    const url = skipScan 
+      ? `/api/files/${fileId}/download?skipScan=true`
+      : `/api/files/${fileId}/download`
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+
+    // Extract scan info from headers
+    const scanInfo = {
+      safe: response.headers.get("X-Scan-Safe") === "true",
+      scanStatus: response.headers.get("X-Scan-Status"),
+      scanTime: response.headers.get("X-Scan-Time"),
+      message: response.headers.get("X-Scan-Message")
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      return { 
+        error: errorData.error || "Download failed",
+        scanResult: errorData.scanResult,
+        scanInfo
+      }
+    }
+
+    const blob = await response.blob()
+    const downloadUrl = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.style.display = "none"
+    a.href = downloadUrl
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(downloadUrl)
+    
+    return { success: true, scanInfo }
+  } catch (error) {
+    console.error("Download File Error:", error)
+    return { error: error.message || "Download failed" }
+  }
+}
+
+// Revoke file access
+export const revokeFileAccess = async (fileId, reason) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/files/${fileId}/revoke`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ reason }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Revoke File Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Set download limit
+export const setDownloadLimit = async (fileId, maxDownloads) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/files/${fileId}/download-limit`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ maxDownloads }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Set Download Limit Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get file scan status
+export const getFileScanStatus = async (fileId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/files/${fileId}/scan-status`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Scan Status Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Verify user file integrity
+export const verifyUserFileIntegrity = async (fileId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/files/${fileId}/verify-integrity`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Verify File Integrity Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}

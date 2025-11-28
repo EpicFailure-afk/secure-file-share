@@ -1,23 +1,19 @@
 "use client";
 
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  useLocation,
-} from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Home from "./pages/Home";
-import Dashboard from "./pages/Dashboard";
-import ForgotPassword from "./pages/ForgotPassword";
-import EditProfile from "./pages/EditProfile";
-import SharePage from "./pages/SharePage";
-import Contact from "./pages/Contact";
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
-import "./App.css";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom"
+import { AnimatePresence } from "framer-motion"
+import Login from "./pages/Login"
+import Register from "./pages/Register"
+import Home from "./pages/Home"
+import Dashboard from "./pages/Dashboard"
+import ForgotPassword from "./pages/ForgotPassword"
+import EditProfile from "./pages/EditProfile"
+import SharePage from "./pages/SharePage"
+import Contact from "./pages/Contact"
+import AdminDashboard from "./pages/AdminDashboard"
+import Navbar from "./components/Navbar"
+import Footer from "./components/Footer"
+import "./App.css"
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -34,6 +30,7 @@ const AnimatedRoutes = () => {
         <Route path="/edit-profile" element={<EditProfile />} />
         <Route path="/share/:token" element={<SharePage />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </AnimatePresence>
   );

@@ -24,10 +24,32 @@ const corsOptions = {
 }
 app.use(cors(corsOptions))
 
+// Import models for initialization
+const SystemSettings = require("./models/SystemSettings")
+const { cleanupExpiredFiles } = require("./utils/fileExpiration")
+
 //! Connect to MongoDB
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected"))
+  .then(async () => {
+    console.log("MongoDB connected")
+    
+    // Initialize system settings
+    await SystemSettings.initializeDefaults()
+    console.log("System settings initialized")
+    
+    // Schedule periodic cleanup of expired files (every hour)
+    setInterval(async () => {
+      try {
+        const result = await cleanupExpiredFiles()
+        if (result.deleted > 0) {
+          console.log(`Cleanup: Deleted ${result.deleted} expired files`)
+        }
+      } catch (err) {
+        console.error("Cleanup error:", err)
+      }
+    }, 60 * 60 * 1000) // Every hour
+  })
   .catch((err) => {
     console.error("MongoDB connection error:", err)
     process.exit(1)

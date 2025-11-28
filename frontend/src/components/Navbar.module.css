@@ -149,6 +149,21 @@
   transform: translateY(-2px);
 }
 
+/* Admin Link */
+.adminLink {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  background: rgba(108, 99, 255, 0.2);
+  border: 1px solid rgba(108, 99, 255, 0.3);
+  border-radius: 8px;
+  padding: 8px 16px !important;
+}
+
+.adminLink:hover {
+  background: rgba(108, 99, 255, 0.3);
+}
+
 /* Mobile Menu */
 .mobileMenu {
   display: none;

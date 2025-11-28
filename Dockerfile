@@ -1,10 +1,12 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 
-# Base image optimizations
+# Base image optimizations - including ClamAV for virus scanning
 RUN apk update && \
-    apk add --no-cache curl bash && \
-    npm install -g npm@latest
+    apk add --no-cache curl bash clamav clamav-daemon && \
+    npm install -g npm@latest && \
+    # Initialize ClamAV database
+    freshclam || true
 
 ###################################################
 # final stage
@@ -14,10 +16,11 @@ FROM base AS final
 ENV NODE_ENV=production
 WORKDIR /app
 
-# Create a non-root user first
+# Create directories for uploads and quarantine
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S -u 1001 -G nodejs nodeapp && \
     mkdir -p /app/uploads && \
+    mkdir -p /app/quarantine && \
     mkdir -p /app/prisma && \
     mkdir -p /app/node_modules && \
     chown -R nodeapp:nodejs /app
