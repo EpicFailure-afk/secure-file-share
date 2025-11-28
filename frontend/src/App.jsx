@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom"
 import { AnimatePresence } from "framer-motion"
@@ -16,8 +16,8 @@ import Footer from "./components/Footer"
 import "./App.css"
 
 const AnimatedRoutes = () => {
-  const location = useLocation()
-  const isSharePage = location.pathname.startsWith("/share/")
+  const location = useLocation();
+  const isSharePage = location.pathname.startsWith("/share/");
 
   return (
     <AnimatePresence mode="wait">
@@ -33,12 +33,12 @@ const AnimatedRoutes = () => {
         <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </AnimatePresence>
-  )
-}
+  );
+};
 
 function App() {
-  const location = useLocation()
-  const isSharePage = location.pathname.startsWith("/share/")
+  const location = useLocation();
+  const isSharePage = location.pathname.startsWith("/share/");
 
   return (
     <div className="app-container">
@@ -48,7 +48,7 @@ function App() {
       </main>
       {!isSharePage && <Footer />}
     </div>
-  )
+  );
 }
 
 const AppWrapper = () => {
@@ -56,7 +56,7 @@ const AppWrapper = () => {
     <Router>
       <App />
     </Router>
-  )
-}
+  );
+};
 
-export default AppWrapper
+export default AppWrapper;
