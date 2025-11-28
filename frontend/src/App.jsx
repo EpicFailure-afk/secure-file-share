@@ -10,6 +10,7 @@ import ForgotPassword from "./pages/ForgotPassword"
 import EditProfile from "./pages/EditProfile"
 import SharePage from "./pages/SharePage"
 import Contact from "./pages/Contact"
+import AdminDashboard from "./pages/AdminDashboard"
 import Navbar from "./components/Navbar"
 import Footer from "./components/Footer"
 import "./App.css"
@@ -29,6 +30,7 @@ const AnimatedRoutes = () => {
         <Route path="/edit-profile" element={<EditProfile />} />
         <Route path="/share/:token" element={<SharePage />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </AnimatePresence>
   )

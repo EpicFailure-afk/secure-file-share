@@ -5,11 +5,18 @@ const fs = require("fs")
 const crypto = require("crypto")
 const File = require("../models/File")
 const User = require("../models/User")
+const AuditLog = require("../models/AuditLog")
 const authMiddleware = require("../middleware/auth")
 const { encryptFile, decryptFileToStream } = require("../utils/encryption")
 const { sendShareVerificationEmail } = require("../utils/shareNotification")
+const { calculateFileHash, verifyFileIntegrity } = require("../utils/fileIntegrity")
+const { scanAndUpdateFile, scanBeforeDownload, getScanStatus } = require("../utils/virusScanner")
+const { revokeFile, setFileExpiration, setDownloadLimit, formatRemainingTime } = require("../utils/fileExpiration")
 
 const router = express.Router()
+
+// Maximum file size (500MB)
+const MAX_FILE_SIZE = 500 * 1024 * 1024
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -28,9 +35,9 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (req, file, cb) => {
-    // Add file type restrictions if needed
+    // Allow all file types
     cb(null, true)
   },
 })
@@ -38,7 +45,10 @@ const upload = multer({
 //! Get all files for the authenticated user
 router.get("/", authMiddleware, async (req, res) => {
   try {
-    const files = await File.find({ userId: req.user.userId }).sort({ uploadDate: -1 })
+    const files = await File.find({ 
+      userId: req.user.userId,
+      isRevoked: false,
+    }).sort({ uploadDate: -1 })
     res.json({ files })
   } catch (err) {
     console.error("Error fetching files:", err)
@@ -46,19 +56,61 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 })
 
-// Upload a file
-router.post("/upload", authMiddleware, upload.single("file"), async (req, res) => {
+// Helper function to format file size
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+// Upload a file with enhanced error handling
+router.post("/upload", authMiddleware, (req, res, next) => {
+  upload.single("file")(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ 
+            error: `File too large. Maximum size is ${formatFileSize(MAX_FILE_SIZE)}` 
+          })
+        }
+        return res.status(400).json({ error: `Upload error: ${err.message}` })
+      }
+      return res.status(400).json({ error: err.message })
+    }
+    next()
+  })
+}, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" })
     }
 
-    // Generate encrypted file path
+    // Check user storage limit
+    const user = await User.findById(req.user.userId)
+    if (user.storageUsed + req.file.size > user.storageLimit) {
+      // Clean up uploaded file
+      fs.unlinkSync(req.file.path)
+      return res.status(400).json({ error: "Storage limit exceeded" })
+    }
+
+    // Calculate file hash before encryption for integrity verification
     const originalFilePath = req.file.path
+    const fileHash = await calculateFileHash(originalFilePath)
+
+    // Generate encrypted file path
     const encryptedFilePath = originalFilePath + ".enc"
 
-    // Encrypt the file
-    const { iv } = await encryptFile(originalFilePath, encryptedFilePath)
+    // Encrypt the file with randomly selected algorithm
+    const { iv, algorithm } = await encryptFile(originalFilePath, encryptedFilePath)
+
+    // Parse expiration from request (optional)
+    let expiresAt = null
+    if (req.body.expiresIn) {
+      expiresAt = new Date()
+      expiresAt.setDate(expiresAt.getDate() + parseInt(req.body.expiresIn))
+    }
 
     const newFile = new File({
       userId: req.user.userId,
@@ -66,10 +118,44 @@ router.post("/upload", authMiddleware, upload.single("file"), async (req, res) =
       fileType: req.file.mimetype,
       fileSize: req.file.size,
       filePath: encryptedFilePath,
-      encryptionIv: iv, // Store the IV for decryption later
+      encryptionIv: iv,
+      encryptionAlgorithm: algorithm,
+      fileHash: fileHash,
+      hashAlgorithm: "sha256",
+      integrityVerified: true,
+      lastIntegrityCheck: new Date(),
+      expiresAt: expiresAt,
+      maxDownloads: req.body.maxDownloads ? parseInt(req.body.maxDownloads) : null,
+      scanStatus: "pending",
     })
 
     await newFile.save()
+
+    // Update user storage
+    await User.findByIdAndUpdate(req.user.userId, {
+      $inc: { storageUsed: req.file.size },
+    })
+
+    // Log file upload
+    await new AuditLog({
+      userId: req.user.userId,
+      action: "file_upload",
+      targetType: "file",
+      targetId: newFile._id,
+      details: {
+        fileName: newFile.fileName,
+        fileSize: newFile.fileSize,
+        fileType: newFile.fileType,
+        encryptionAlgorithm: algorithm,
+      },
+      ipAddress: req.headers["x-forwarded-for"] || req.connection.remoteAddress,
+      status: "success",
+    }).save()
+
+    // Trigger async virus scan
+    scanAndUpdateFile(newFile._id).catch(err => {
+      console.error("Async virus scan failed:", err)
+    })
 
     res.status(201).json({
       file: {
@@ -78,6 +164,10 @@ router.post("/upload", authMiddleware, upload.single("file"), async (req, res) =
         fileType: newFile.fileType,
         fileSize: newFile.fileSize,
         uploadDate: newFile.uploadDate,
+        expiresAt: newFile.expiresAt,
+        scanStatus: newFile.scanStatus,
+        integrityVerified: newFile.integrityVerified,
+        encryptionAlgorithm: algorithm,
       },
       message: "File uploaded successfully",
     })
@@ -87,7 +177,7 @@ router.post("/upload", authMiddleware, upload.single("file"), async (req, res) =
   }
 })
 
-//! Download a file
+//! Download a file with real-time virus scan
 router.get("/:id/download", authMiddleware, async (req, res) => {
   try {
     const file = await File.findOne({
@@ -99,12 +189,70 @@ router.get("/:id/download", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "File not found" })
     }
 
+    // Check if file is accessible
+    if (file.isRevoked) {
+      return res.status(403).json({ error: "File has been revoked" })
+    }
+
+    if (file.expiresAt && file.expiresAt < new Date()) {
+      return res.status(403).json({ error: "File has expired" })
+    }
+
+    if (file.maxDownloads && file.downloadCount >= file.maxDownloads) {
+      return res.status(403).json({ error: "Download limit reached" })
+    }
+
+    // Skip real-time scan if query parameter is set (for pre-scanned downloads)
+    const skipScan = req.query.skipScan === "true"
+    let scanInfo = null
+    
+    if (!skipScan) {
+      // Perform real-time virus scan before download
+      const ipAddress = req.headers["x-forwarded-for"] || req.connection.remoteAddress
+      const scanResult = await scanBeforeDownload(file._id, req.user.userId, ipAddress)
+      scanInfo = scanResult.scanResult
+      
+      if (!scanResult.allowed) {
+        return res.status(403).json({
+          error: scanResult.message,
+          scanResult: scanResult.scanResult,
+        })
+      }
+    }
+
     // Decrypt the file and get a read stream
     const { stream, cleanup } = await decryptFileToStream(file.filePath)
+
+    // Increment download count
+    await File.findByIdAndUpdate(file._id, {
+      $inc: { downloadCount: 1 },
+    })
+
+    // Log download
+    await new AuditLog({
+      userId: req.user.userId,
+      action: "file_download",
+      targetType: "file",
+      targetId: file._id,
+      details: { fileName: file.fileName },
+      ipAddress: req.headers["x-forwarded-for"] || req.connection.remoteAddress,
+      status: "success",
+    }).save()
 
     // Set appropriate headers
     res.setHeader("Content-Disposition", `attachment; filename="${file.fileName}"`)
     res.setHeader("Content-Type", file.fileType)
+    
+    // Set scan info headers for frontend
+    if (scanInfo) {
+      res.setHeader("X-Scan-Status", scanInfo.status || "unknown")
+      res.setHeader("X-Scan-Safe", scanInfo.status === "clean" ? "true" : "false")
+      res.setHeader("X-Scan-Time", scanInfo.scanTimeMs ? String(scanInfo.scanTimeMs) : "0")
+      res.setHeader("X-Scan-Message", scanInfo.message || "Scan completed")
+    }
+    
+    // Expose custom headers to frontend
+    res.setHeader("Access-Control-Expose-Headers", "X-Scan-Status, X-Scan-Safe, X-Scan-Time, X-Scan-Message")
 
     // Pipe the decrypted stream to the response
     stream.pipe(res)
@@ -114,6 +262,33 @@ router.get("/:id/download", authMiddleware, async (req, res) => {
     stream.on("error", cleanup)
   } catch (err) {
     console.error("Error downloading file:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Pre-scan file before download (separate endpoint for UI feedback)
+router.post("/:id/pre-scan", authMiddleware, async (req, res) => {
+  try {
+    const file = await File.findOne({
+      _id: req.params.id,
+      userId: req.user.userId,
+    })
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" })
+    }
+
+    const ipAddress = req.headers["x-forwarded-for"] || req.connection.remoteAddress
+    const scanResult = await scanBeforeDownload(file._id, req.user.userId, ipAddress)
+
+    res.json({
+      allowed: scanResult.allowed,
+      message: scanResult.message,
+      scanResult: scanResult.scanResult,
+      fileName: file.fileName,
+    })
+  } catch (err) {
+    console.error("Error pre-scanning file:", err)
     res.status(500).json({ error: "Server error" })
   }
 })
@@ -136,12 +311,158 @@ router.delete("/:id", authMiddleware, async (req, res) => {
         console.error("Error deleting file from storage:", err)
       }
 
+      // Update user storage
+      await User.findByIdAndUpdate(req.user.userId, {
+        $inc: { storageUsed: -file.fileSize },
+      })
+
+      // Log deletion
+      await new AuditLog({
+        userId: req.user.userId,
+        action: "file_delete",
+        targetType: "file",
+        targetId: file._id,
+        details: { fileName: file.fileName },
+        ipAddress: req.headers["x-forwarded-for"] || req.connection.remoteAddress,
+        status: "success",
+      }).save()
+
       // Delete file from database
       await File.deleteOne({ _id: file._id })
       res.json({ message: "File deleted successfully" })
     })
   } catch (err) {
     console.error("Error deleting file:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Verify file integrity
+router.get("/:id/verify-integrity", authMiddleware, async (req, res) => {
+  try {
+    const file = await File.findOne({
+      _id: req.params.id,
+      userId: req.user.userId,
+    })
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" })
+    }
+
+    const result = await verifyFileIntegrity(file._id)
+    res.json(result)
+  } catch (err) {
+    console.error("Error verifying file integrity:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Set file expiration with flexible time units
+router.post("/:id/expiration", authMiddleware, async (req, res) => {
+  try {
+    const file = await File.findOne({
+      _id: req.params.id,
+      userId: req.user.userId,
+    })
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" })
+    }
+
+    const { value, unit } = req.body // { value: 30, unit: 'minutes' }
+    
+    // Support legacy format (expiresIn as days)
+    const expirationValue = value || req.body.expiresIn
+    const expirationUnit = unit || "days"
+    
+    const result = await setFileExpiration(file._id, parseInt(expirationValue), expirationUnit)
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.message })
+    }
+
+    res.json({ 
+      message: result.message, 
+      expiresAt: result.expiresAt,
+      remaining: result.remaining 
+    })
+  } catch (err) {
+    console.error("Error setting file expiration:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Revoke file access
+router.post("/:id/revoke", authMiddleware, async (req, res) => {
+  try {
+    const file = await File.findOne({
+      _id: req.params.id,
+      userId: req.user.userId,
+    })
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" })
+    }
+
+    const { reason } = req.body
+    const result = await revokeFile(file._id, req.user.userId, reason)
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.message })
+    }
+
+    res.json({ message: result.message })
+  } catch (err) {
+    console.error("Error revoking file:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Set download limit
+router.post("/:id/download-limit", authMiddleware, async (req, res) => {
+  try {
+    const file = await File.findOne({
+      _id: req.params.id,
+      userId: req.user.userId,
+    })
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" })
+    }
+
+    const { maxDownloads } = req.body
+    const result = await setDownloadLimit(file._id, parseInt(maxDownloads))
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.message })
+    }
+
+    res.json({ message: result.message })
+  } catch (err) {
+    console.error("Error setting download limit:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Get file scan status
+router.get("/:id/scan-status", authMiddleware, async (req, res) => {
+  try {
+    const file = await File.findOne({
+      _id: req.params.id,
+      userId: req.user.userId,
+    })
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" })
+    }
+
+    res.json({
+      scanStatus: file.scanStatus,
+      scanDate: file.scanDate,
+      scanResult: file.scanResult,
+    })
+  } catch (err) {
+    console.error("Error getting scan status:", err)
     res.status(500).json({ error: "Server error" })
   }
 })
