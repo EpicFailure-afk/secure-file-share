@@ -12,6 +12,7 @@ const { sendShareVerificationEmail } = require("../utils/shareNotification")
 const { calculateFileHash, verifyFileIntegrity } = require("../utils/fileIntegrity")
 const { scanAndUpdateFile, scanBeforeDownload, getScanStatus } = require("../utils/virusScanner")
 const { revokeFile, setFileExpiration, setDownloadLimit, formatRemainingTime } = require("../utils/fileExpiration")
+const { logActivity, getActivityDescription } = require("../utils/activityTracker")
 
 const router = express.Router()
 
@@ -152,6 +153,24 @@ router.post("/upload", authMiddleware, (req, res, next) => {
       status: "success",
     }).save()
 
+    // Log activity for organization monitoring
+    if (user.organization) {
+      await logActivity({
+        organizationId: user.organization,
+        userId: user._id,
+        type: "file_upload",
+        targetType: "file",
+        targetId: newFile._id,
+        targetName: newFile.fileName,
+        description: getActivityDescription("file_upload", user.username, newFile.fileName),
+        metadata: {
+          fileSize: newFile.fileSize,
+          fileType: newFile.fileType,
+        },
+        priority: "normal",
+      })
+    }
+
     // Trigger async virus scan
     scanAndUpdateFile(newFile._id).catch(err => {
       console.error("Async virus scan failed:", err)
@@ -239,6 +258,25 @@ router.get("/:id/download", authMiddleware, async (req, res) => {
       status: "success",
     }).save()
 
+    // Log activity for organization monitoring
+    const downloadUser = await User.findById(req.user.userId)
+    if (downloadUser && downloadUser.organization) {
+      await logActivity({
+        organizationId: downloadUser.organization,
+        userId: downloadUser._id,
+        type: "file_download",
+        targetType: "file",
+        targetId: file._id,
+        targetName: file.fileName,
+        description: getActivityDescription("file_download", downloadUser.username, file.fileName),
+        metadata: {
+          fileSize: file.fileSize,
+          fileType: file.fileType,
+        },
+        priority: "normal",
+      })
+    }
+
     // Set appropriate headers
     res.setHeader("Content-Disposition", `attachment; filename="${file.fileName}"`)
     res.setHeader("Content-Type", file.fileType)
@@ -305,6 +343,11 @@ router.delete("/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "File not found" })
     }
 
+    // Get user info for logging
+    const deleteUser = await User.findById(req.user.userId)
+    const fileName = file.fileName
+    const fileId = file._id
+
     // Delete file from storage
     fs.unlink(file.filePath, async (err) => {
       if (err) {
@@ -321,14 +364,28 @@ router.delete("/:id", authMiddleware, async (req, res) => {
         userId: req.user.userId,
         action: "file_delete",
         targetType: "file",
-        targetId: file._id,
-        details: { fileName: file.fileName },
+        targetId: fileId,
+        details: { fileName: fileName },
         ipAddress: req.headers["x-forwarded-for"] || req.connection.remoteAddress,
         status: "success",
       }).save()
 
+      // Log activity for organization monitoring
+      if (deleteUser && deleteUser.organization) {
+        await logActivity({
+          organizationId: deleteUser.organization,
+          userId: deleteUser._id,
+          type: "file_delete",
+          targetType: "file",
+          targetId: fileId,
+          targetName: fileName,
+          description: getActivityDescription("file_delete", deleteUser.username, fileName),
+          priority: "normal",
+        })
+      }
+
       // Delete file from database
-      await File.deleteOne({ _id: file._id })
+      await File.deleteOne({ _id: fileId })
       res.json({ message: "File deleted successfully" })
     })
   } catch (err) {
@@ -490,6 +547,25 @@ router.post("/:id/share", authMiddleware, async (req, res) => {
     file.shareToken = shareToken
     file.shareExpiry = shareExpiry
     await file.save()
+
+    // Log activity for organization monitoring
+    const shareUser = await User.findById(req.user.userId)
+    if (shareUser && shareUser.organization) {
+      await logActivity({
+        organizationId: shareUser.organization,
+        userId: shareUser._id,
+        type: "file_share",
+        targetType: "file",
+        targetId: file._id,
+        targetName: file.fileName,
+        description: getActivityDescription("file_share", shareUser.username, file.fileName),
+        metadata: {
+          shareType: "link",
+          expiresAt: shareExpiry,
+        },
+        priority: "normal",
+      })
+    }
 
     // Generate share URL
     // const shareUrl = `${process.env.APP_URL || "http://localhost:5173"}/share/${shareToken}`

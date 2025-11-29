@@ -8,7 +8,9 @@ const router = express.Router()
 // Get user details (protected route)
 router.get("/profile", authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select("-password") // Exclude password
+    const user = await User.findById(req.user.userId)
+      .select("-password")
+      .populate("organization", "name slug") // Include organization info
     if (!user) return res.status(404).json({ message: "User not found" })
 
     res.json({
@@ -16,6 +18,14 @@ router.get("/profile", authMiddleware, async (req, res) => {
         id: user._id,
         username: user.username,
         email: user.email,
+        role: user.role,
+        organization: user.organization,
+        jobTitle: user.jobTitle,
+        department: user.department,
+        permissions: user.permissions,
+        approvalStatus: user.approvalStatus,
+        storageUsed: user.storageUsed,
+        storageLimit: user.storageLimit,
         createdAt: user.createdAt,
       },
     })

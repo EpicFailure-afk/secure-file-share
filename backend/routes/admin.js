@@ -11,11 +11,11 @@ const { revokeFile, restoreFile, cleanupExpiredFiles, getFilesExpiringSoon, setF
 
 const router = express.Router()
 
-// Admin middleware
+// Admin middleware - allows superadmin role for system-wide admin
 const adminMiddleware = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.userId)
-    if (!user || user.role !== "admin") {
+    if (!user || !["admin", "superadmin"].includes(user.role)) {
       return res.status(403).json({ message: "Access denied. Admin privileges required." })
     }
     req.adminUser = user

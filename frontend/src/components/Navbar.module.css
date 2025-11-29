@@ -128,6 +128,41 @@
   transform: rotate(15deg);
 }
 
+/* User Info Display */
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  margin-right: 5px;
+}
+
+.userName {
+  color: white;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.userRole {
+  color: rgba(255, 138, 0, 0.9);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.userInfoMobile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
 /* Logout Button */
 .logoutBtn {
   display: flex;
@@ -162,6 +197,36 @@
 
 .adminLink:hover {
   background: rgba(108, 99, 255, 0.3);
+}
+
+/* Organization Link */
+.orgLink {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 138, 0, 0.2);
+  border: 1px solid rgba(255, 138, 0, 0.3);
+  border-radius: 8px;
+  padding: 8px 16px !important;
+}
+
+.orgLink:hover {
+  background: rgba(255, 138, 0, 0.3);
+}
+
+/* Manager Dashboard Link */
+.managerLink {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  padding: 8px 16px !important;
+}
+
+.managerLink:hover {
+  background: rgba(16, 185, 129, 0.3);
 }
 
 /* Mobile Menu */

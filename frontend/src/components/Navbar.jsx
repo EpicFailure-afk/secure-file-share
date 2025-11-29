@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { FaSun, FaMoon, FaBars, FaTimes, FaSignOutAlt, FaUserShield } from "react-icons/fa"
+import { FaSun, FaMoon, FaBars, FaTimes, FaSignOutAlt, FaUserShield, FaBuilding, FaChartLine } from "react-icons/fa"
 import styles from "./Navbar.module.css"
 import logo from "../assets/image.png"
 import { getUserProfile } from "../api"
@@ -15,6 +15,10 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isOrgMember, setIsOrgMember] = useState(false)
+  const [canAccessOrgDashboard, setCanAccessOrgDashboard] = useState(false)
+  const [username, setUsername] = useState("")
+  const [userRole, setUserRole] = useState("")
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -47,16 +51,44 @@ const Navbar = () => {
       if (token) {
         try {
           const profile = await getUserProfile()
-          if (profile.user?.role === "admin") {
+          const user = profile.user
+          
+          // Set username and role
+          setUsername(user?.username || "")
+          setUserRole(user?.role || "")
+          
+          // Check if superadmin
+          if (user?.role === "superadmin") {
             setIsAdmin(true)
           } else {
             setIsAdmin(false)
           }
+          
+          // Check if in organization and has org dashboard access
+          if (user?.organization) {
+            setIsOrgMember(true)
+            if (["admin", "owner", "manager"].includes(user?.role)) {
+              setCanAccessOrgDashboard(true)
+            } else {
+              setCanAccessOrgDashboard(false)
+            }
+          } else {
+            setIsOrgMember(false)
+            setCanAccessOrgDashboard(false)
+          }
         } catch (err) {
           setIsAdmin(false)
+          setIsOrgMember(false)
+          setCanAccessOrgDashboard(false)
+          setUsername("")
+          setUserRole("")
         }
       } else {
         setIsAdmin(false)
+        setIsOrgMember(false)
+        setCanAccessOrgDashboard(false)
+        setUsername("")
+        setUserRole("")
       }
     }
 
@@ -85,7 +117,21 @@ const Navbar = () => {
     localStorage.removeItem("token")
     setIsLoggedIn(false)
     setIsAdmin(false)
+    setUsername("")
+    setUserRole("")
     navigate("/")
+  }
+
+  // Format role for display
+  const formatRole = (role) => {
+    const roleLabels = {
+      staff: "Staff",
+      manager: "Manager",
+      admin: "Admin",
+      owner: "Owner",
+      superadmin: "Super Admin"
+    }
+    return roleLabels[role] || role
   }
 
   return (
@@ -120,9 +166,25 @@ const Navbar = () => {
           </Link>
           {isLoggedIn ? (
             <>
+              {username && (
+                <div className={styles.userInfo}>
+                  <span className={styles.userName}>{username}</span>
+                  <span className={styles.userRole}>({formatRole(userRole)})</span>
+                </div>
+              )}
               <Link to="/dashboard" className={location.pathname === "/dashboard" ? styles.active : ""}>
                 Dashboard
               </Link>
+              {canAccessOrgDashboard && (
+                <Link to="/organization" className={`${location.pathname === "/organization" ? styles.active : ""} ${styles.orgLink}`}>
+                  <FaBuilding /> Organization
+                </Link>
+              )}
+              {canAccessOrgDashboard && (
+                <Link to="/manager-dashboard" className={`${location.pathname === "/manager-dashboard" ? styles.active : ""} ${styles.managerLink}`}>
+                  <FaChartLine /> Monitoring
+                </Link>
+              )}
               {isAdmin && (
                 <Link to="/admin" className={`${location.pathname === "/admin" ? styles.active : ""} ${styles.adminLink}`}>
                   <FaUserShield /> Admin
@@ -161,9 +223,25 @@ const Navbar = () => {
         </Link>
         {isLoggedIn ? (
           <>
+            {username && (
+              <div className={styles.userInfoMobile}>
+                <span className={styles.userName}>{username}</span>
+                <span className={styles.userRole}>({formatRole(userRole)})</span>
+              </div>
+            )}
             <Link to="/dashboard" className={location.pathname === "/dashboard" ? styles.active : ""}>
               Dashboard
             </Link>
+            {canAccessOrgDashboard && (
+              <Link to="/organization" className={`${location.pathname === "/organization" ? styles.active : ""} ${styles.orgLink}`}>
+                <FaBuilding /> Organization
+              </Link>
+            )}
+            {canAccessOrgDashboard && (
+              <Link to="/manager-dashboard" className={`${location.pathname === "/manager-dashboard" ? styles.active : ""} ${styles.managerLink}`}>
+                <FaChartLine /> Monitoring
+              </Link>
+            )}
             {isAdmin && (
               <Link to="/admin" className={`${location.pathname === "/admin" ? styles.active : ""} ${styles.adminLink}`}>
                 <FaUserShield /> Admin

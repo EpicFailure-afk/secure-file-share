@@ -956,3 +956,505 @@ export const verifyUserFileIntegrity = async (fileId) => {
     return { error: "Network error. Please try again." }
   }
 }
+
+// ==================== ORGANIZATION API ====================
+
+// Create organization
+export const createOrganization = async (orgData) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/create`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(orgData),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Create Organization Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get organization details
+export const getOrganizationDetails = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/details`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Organization Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Join organization with invite code
+export const joinOrganization = async (joinData) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/join`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(joinData),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Join Organization Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Leave organization
+export const leaveOrganization = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/leave`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Leave Organization Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get organization members
+export const getOrganizationMembers = async (page = 1, limit = 20, filters = {}) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const params = new URLSearchParams({ page, limit, ...filters })
+    const response = await fetch(`/api/organization/members?${params}`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Members Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Approve/reject member
+export const approveMember = async (memberId, action) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/members/${memberId}/approve`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ action }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Approve Member Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Update member role
+export const updateMemberRole = async (memberId, role) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/members/${memberId}/role`, {
+      method: "PUT",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ role }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Update Member Role Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Remove member from organization
+export const removeMember = async (memberId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/members/${memberId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Remove Member Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Regenerate invite code
+export const regenerateInviteCode = async (expiresInHours = 72) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/invite-code/regenerate`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ expiresInHours }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Regenerate Invite Code Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Update organization settings
+export const updateOrganizationSettings = async (settings) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/settings`, {
+      method: "PUT",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(settings),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Update Organization Settings Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get organization stats
+export const getOrganizationStats = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/stats`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Organization Stats Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Transfer ownership
+export const transferOwnership = async (newOwnerId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/transfer-ownership`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ newOwnerId }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Transfer Ownership Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Delete organization
+export const deleteOrganization = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization`, {
+      method: "DELETE",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Delete Organization Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// ==================== MANAGER MONITORING API ====================
+
+// Get live dashboard data
+export const getMonitorLive = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/monitor/live`, {
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Monitor Live Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get activity feed
+export const getMonitorActivity = async (page = 1, limit = 50, filters = {}) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const params = new URLSearchParams({
+      page,
+      limit,
+      ...filters,
+    })
+
+    const response = await fetch(`/api/organization/monitor/activity?${params}`, {
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Monitor Activity Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get sessions
+export const getMonitorSessions = async (page = 1, limit = 50, filters = {}) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const params = new URLSearchParams({
+      page,
+      limit,
+      ...filters,
+    })
+
+    const response = await fetch(`/api/organization/monitor/sessions?${params}`, {
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Monitor Sessions Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get work logs
+export const getMonitorWorkLogs = async (page = 1, limit = 50, filters = {}) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const params = new URLSearchParams({
+      page,
+      limit,
+      ...filters,
+    })
+
+    const response = await fetch(`/api/organization/monitor/worklogs?${params}`, {
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Monitor Work Logs Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get user details
+export const getMonitorUser = async (userId, days = 7) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/monitor/user/${userId}?days=${days}`, {
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Monitor User Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get organization stats
+export const getMonitorStats = async (period = "week") => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/monitor/stats?period=${period}`, {
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Monitor Stats Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Get file activity
+export const getMonitorFile = async (fileId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/monitor/file/${fileId}`, {
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Monitor File Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Send heartbeat to keep session alive
+export const sendHeartbeat = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "No session" }
+    }
+
+    const response = await fetch(`/api/auth/heartbeat`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+    })
+    
+    if (!response.ok) {
+      return { error: "Heartbeat failed" }
+    }
+    
+    return await response.json()
+  } catch (error) {
+    console.error("Send Heartbeat Error:", error)
+    return { error: "Network error" }
+  }
+}
+
+// Logout with session end
+export const logoutUser = async (sessionId) => {
+  try {
+    const token = localStorage.getItem("token")
+
+    await fetch(`/api/auth/logout`, {
+      method: "POST",
+      headers: {
+        Authorization: token || "",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ sessionId }),
+    })
+    
+    localStorage.removeItem("token")
+    localStorage.removeItem("sessionId")
+    return { success: true }
+  } catch (error) {
+    console.error("Logout Error:", error)
+    localStorage.removeItem("token")
+    localStorage.removeItem("sessionId")
+    return { success: true }
+  }
+}
