@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Script to make a user an admin
- * Usage: node scripts/makeAdmin.js <email>
+ * Script to make a user an admin or superadmin
+ * Usage: node scripts/makeAdmin.js <email> [role]
+ * Roles: admin, superadmin (default: superadmin)
  */
 
 const mongoose = require("mongoose")
@@ -15,9 +16,15 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", userSchema)
 
-async function makeAdmin(email) {
+async function makeAdmin(email, role = "superadmin") {
   if (!email) {
-    console.error("Usage: node scripts/makeAdmin.js <email>")
+    console.error("Usage: node scripts/makeAdmin.js <email> [role]")
+    console.error("Roles: admin, superadmin (default: superadmin)")
+    process.exit(1)
+  }
+
+  if (!["admin", "superadmin"].includes(role)) {
+    console.error("Invalid role. Must be 'admin' or 'superadmin'")
     process.exit(1)
   }
 
@@ -27,7 +34,7 @@ async function makeAdmin(email) {
 
     const user = await User.findOneAndUpdate(
       { email: email },
-      { role: "admin" },
+      { role: role },
       { new: true }
     )
 
@@ -36,7 +43,7 @@ async function makeAdmin(email) {
       process.exit(1)
     }
 
-    console.log(`Successfully made ${email} an admin!`)
+    console.log(`Successfully made ${email} a ${role}!`)
     console.log("User:", user)
   } catch (error) {
     console.error("Error:", error.message)
@@ -47,4 +54,5 @@ async function makeAdmin(email) {
 }
 
 const email = process.argv[2]
-makeAdmin(email)
+const role = process.argv[3] || "superadmin"
+makeAdmin(email, role)

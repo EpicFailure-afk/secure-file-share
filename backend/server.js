@@ -64,6 +64,7 @@ const userRoutes = require("./routes/user")
 const adminRoutes = require("./routes/admin")
 const fileRoutes = require("./routes/files")
 const contactRoutes = require("./routes/contact")
+const organizationRoutes = require("./routes/organization")
 
 // Use routes
 app.use("/api/auth", authRoutes)
@@ -71,6 +72,7 @@ app.use("/api/user", userRoutes)
 app.use("/api/admin", adminRoutes)
 app.use("/api/files", fileRoutes)
 app.use("/api/contact", contactRoutes)
+app.use("/api/organization", organizationRoutes)
 
 // Default route
 app.get("/", (req, res) => {

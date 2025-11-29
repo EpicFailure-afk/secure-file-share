@@ -25,9 +25,12 @@ import {
   FaClock,
   FaExclamationTriangle,
   FaBan,
+  FaBuilding,
+  FaPlus,
+  FaKey,
 } from "react-icons/fa"
 import styles from "./Dashboard.module.css"
-import { getUserFiles, uploadFile, deleteFile, shareFile, downloadFile, getUserProfile, verifyUserFileIntegrity, revokeFileAccess, setFileExpiration, preScanFile, downloadFileWithScan } from "../api"
+import { getUserFiles, uploadFile, deleteFile, shareFile, downloadFile, getUserProfile, verifyUserFileIntegrity, revokeFileAccess, setFileExpiration, preScanFile, downloadFileWithScan, createOrganization, joinOrganization, getOrganizationDetails } from "../api"
 
 const Dashboard = () => {
   const [files, setFiles] = useState([])
@@ -51,6 +54,17 @@ const Dashboard = () => {
   const [scanNotification, setScanNotification] = useState(null)
   const [isDownloading, setIsDownloading] = useState(null)
   const [uploadFileName, setUploadFileName] = useState(null)
+  
+  // Organization states
+  const [organization, setOrganization] = useState(null)
+  const [orgModalOpen, setOrgModalOpen] = useState(false)
+  const [orgModalType, setOrgModalType] = useState("create") // "create" or "join"
+  const [orgFormData, setOrgFormData] = useState({
+    name: "",
+    description: "",
+    industry: "other",
+    inviteCode: "",
+  })
 
   useEffect(() => {
     const token = localStorage.getItem("token")
@@ -86,6 +100,14 @@ const Dashboard = () => {
           }
         } else {
           setFiles(filesResponse.files || [])
+        }
+        
+        // Fetch organization if user is in one
+        if (profileResponse.user?.organization) {
+          const orgResponse = await getOrganizationDetails()
+          if (!orgResponse.error && orgResponse.organization) {
+            setOrganization(orgResponse.organization)
+          }
         }
       } catch (err) {
         setError("Failed to fetch data. Please try again.")
@@ -352,6 +374,83 @@ const Dashboard = () => {
     }
   }
 
+  const openOrgModal = (type) => {
+    setOrgModalType(type)
+    setOrgFormData({ name: "", description: "", industry: "other", inviteCode: "" })
+    setOrgModalOpen(true)
+  }
+
+  const handleCreateOrg = async () => {
+    if (!orgFormData.name.trim()) {
+      setError("Organization name is required")
+      return
+    }
+    
+    try {
+      const response = await createOrganization({
+        name: orgFormData.name,
+        description: orgFormData.description,
+        industry: orgFormData.industry,
+      })
+      
+      if (response.error) {
+        setError(response.error)
+      } else {
+        setOrganization(response.organization)
+        setScanNotification({
+          safe: true,
+          status: "success",
+          message: `Organization "${response.organization.name}" created successfully!`,
+          fileName: ""
+        })
+        setTimeout(() => setScanNotification(null), 5000)
+        setOrgModalOpen(false)
+        // Reload user data
+        const profileRes = await getUserProfile()
+        if (profileRes.user) setUser(profileRes.user)
+      }
+    } catch (err) {
+      setError("Failed to create organization")
+    }
+  }
+
+  const handleJoinOrg = async () => {
+    if (!orgFormData.inviteCode.trim()) {
+      setError("Invite code is required")
+      return
+    }
+    
+    try {
+      const response = await joinOrganization({
+        inviteCode: orgFormData.inviteCode,
+      })
+      
+      if (response.error) {
+        setError(response.error)
+      } else {
+        setScanNotification({
+          safe: true,
+          status: "success",
+          message: response.message,
+          fileName: ""
+        })
+        setTimeout(() => setScanNotification(null), 5000)
+        setOrgModalOpen(false)
+        // Reload data
+        const profileRes = await getUserProfile()
+        if (profileRes.user) {
+          setUser(profileRes.user)
+          if (profileRes.user.organization) {
+            const orgRes = await getOrganizationDetails()
+            if (orgRes.organization) setOrganization(orgRes.organization)
+          }
+        }
+      }
+    } catch (err) {
+      setError("Failed to join organization")
+    }
+  }
+
   return (
     <div className={styles.dashboardContainer}>
       <motion.div
@@ -380,9 +479,15 @@ const Dashboard = () => {
                   >
                     {user.username}
                   </motion.span>
+                  {user.role && (
+                    <span className={styles.userRoleBadge}>
+                      ({user.role.charAt(0).toUpperCase() + user.role.slice(1)})
+                    </span>
+                  )}
                   <div className={styles.userTooltip}>
                     <div className={styles.tooltipTitle}>User Information</div>
                     <div className={styles.tooltipInfo}>Username: {user.username}</div>
+                    <div className={styles.tooltipInfo}>Role: {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}</div>
                     {/* Email removed for security purposes */}
                     <div className={styles.tooltipDate}>
                       Member since:{" "}
@@ -415,6 +520,52 @@ const Dashboard = () => {
           />
         </div>
       </motion.div>
+
+      {/* Organization Section */}
+      {!organization ? (
+        <motion.div
+          className={styles.orgBanner}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className={styles.orgBannerContent}>
+            <FaBuilding className={styles.orgIcon} />
+            <div>
+              <h3>Join or Create an Organization</h3>
+              <p>Collaborate with your team securely</p>
+            </div>
+          </div>
+          <div className={styles.orgBannerActions}>
+            <button className={styles.createOrgBtn} onClick={() => openOrgModal("create")}>
+              <FaPlus /> Create Organization
+            </button>
+            <button className={styles.joinOrgBtn} onClick={() => openOrgModal("join")}>
+              <FaKey /> Join with Code
+            </button>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div
+          className={styles.orgCard}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className={styles.orgCardContent}>
+            <FaBuilding className={styles.orgIcon} />
+            <div>
+              <h3>{organization.name}</h3>
+              <p>Role: <span className={styles.roleTag}>{user?.role}</span></p>
+            </div>
+          </div>
+          {["admin", "owner", "manager"].includes(user?.role) && (
+            <Link to="/organization" className={styles.orgDashboardLink}>
+              Manage Organization →
+            </Link>
+          )}
+        </motion.div>
+      )}
 
       {isUploading && (
         <div className={styles.uploadProgress}>
@@ -635,6 +786,91 @@ const Dashboard = () => {
             ×
           </button>
         </motion.div>
+      )}
+
+      {/* Organization Modal */}
+      {orgModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setOrgModalOpen(false)}>
+          <motion.div 
+            className={styles.modal}
+            onClick={(e) => e.stopPropagation()}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+          >
+            <div className={styles.modalHeader}>
+              <h2>
+                <FaBuilding /> {orgModalType === "create" ? "Create Organization" : "Join Organization"}
+              </h2>
+              <button className={styles.modalClose} onClick={() => setOrgModalOpen(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              {orgModalType === "create" ? (
+                <>
+                  <div className={styles.formGroup}>
+                    <label>Organization Name *</label>
+                    <input
+                      type="text"
+                      value={orgFormData.name}
+                      onChange={(e) => setOrgFormData({ ...orgFormData, name: e.target.value })}
+                      placeholder="Enter organization name"
+                      className={styles.formInput}
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Description</label>
+                    <textarea
+                      value={orgFormData.description}
+                      onChange={(e) => setOrgFormData({ ...orgFormData, description: e.target.value })}
+                      placeholder="Describe your organization (optional)"
+                      className={styles.formTextarea}
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label>Industry</label>
+                    <select
+                      value={orgFormData.industry}
+                      onChange={(e) => setOrgFormData({ ...orgFormData, industry: e.target.value })}
+                      className={styles.formSelect}
+                    >
+                      <option value="technology">Technology</option>
+                      <option value="healthcare">Healthcare</option>
+                      <option value="finance">Finance</option>
+                      <option value="education">Education</option>
+                      <option value="government">Government</option>
+                      <option value="retail">Retail</option>
+                      <option value="manufacturing">Manufacturing</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <div className={styles.formGroup}>
+                  <label>Invite Code *</label>
+                  <input
+                    type="text"
+                    value={orgFormData.inviteCode}
+                    onChange={(e) => setOrgFormData({ ...orgFormData, inviteCode: e.target.value.toUpperCase() })}
+                    placeholder="Enter invite code"
+                    className={styles.formInput}
+                    style={{ textTransform: "uppercase", letterSpacing: "2px", fontFamily: "monospace" }}
+                  />
+                  <p className={styles.formHint}>Get the invite code from your organization admin</p>
+                </div>
+              )}
+            </div>
+            <div className={styles.modalActions}>
+              <button 
+                className={styles.confirmBtn} 
+                onClick={orgModalType === "create" ? handleCreateOrg : handleJoinOrg}
+              >
+                {orgModalType === "create" ? "Create Organization" : "Join Organization"}
+              </button>
+              <button className={styles.closeBtn} onClick={() => setOrgModalOpen(false)}>
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
     </div>
   )

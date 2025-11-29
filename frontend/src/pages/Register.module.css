@@ -262,3 +262,231 @@
   }
 }
 
+/* Organization Section Styles */
+.sectionDivider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 0.5rem 0;
+}
+
+.sectionDivider::before,
+.sectionDivider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sectionDivider span {
+  padding: 0 1rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.orgActionButtons {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.orgActionBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.orgActionBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: white;
+}
+
+.orgActionActive {
+  background: linear-gradient(135deg, rgba(255, 138, 0, 0.2), rgba(229, 46, 113, 0.2));
+  border-color: rgba(255, 138, 0, 0.5);
+  color: white;
+  box-shadow: 0 0 15px rgba(255, 138, 0, 0.2);
+}
+
+.orgActionActive:hover {
+  background: linear-gradient(135deg, rgba(255, 138, 0, 0.25), rgba(229, 46, 113, 0.25));
+  border-color: rgba(255, 138, 0, 0.6);
+}
+
+.toggleContainer {
+  margin: 0.5rem 0;
+}
+
+.toggleLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.toggleLabel input[type="checkbox"] {
+  display: none;
+}
+
+.toggleSlider {
+  position: relative;
+  width: 50px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 13px;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.toggleSlider::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  top: 2px;
+  left: 2px;
+  transition: all 0.3s ease;
+}
+
+.toggleLabel input:checked + .toggleSlider {
+  background: linear-gradient(90deg, #ff8a00, #e52e71);
+}
+
+.toggleLabel input:checked + .toggleSlider::before {
+  transform: translateX(24px);
+}
+
+.toggleText {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.95rem;
+}
+
+.orgSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.infoBox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(33, 150, 243, 0.1);
+  border-radius: 8px;
+  border-left: 3px solid #2196f3;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+}
+
+.infoBox svg {
+  color: #2196f3;
+  flex-shrink: 0;
+}
+
+.roleSection {
+  margin-top: 0.5rem;
+}
+
+.fieldLabel {
+  display: block;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+}
+
+.roleGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.roleCard {
+  display: block;
+  cursor: pointer;
+}
+
+.roleCard input {
+  display: none;
+}
+
+.roleContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.roleContent:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.roleSelected .roleContent {
+  background: rgba(255, 138, 0, 0.15);
+  border-color: #ff8a00;
+}
+
+.roleIcon {
+  font-size: 1.5rem;
+  color: #ff8a00;
+  margin-bottom: 0.5rem;
+}
+
+.roleName {
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.roleDesc {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+
+@media (max-width: 600px) {
+  .roleGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .roleContent {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 1rem;
+    text-align: left;
+  }
+  
+  .roleIcon {
+    margin-bottom: 0;
+  }
+}
+
