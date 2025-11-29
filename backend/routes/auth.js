@@ -5,6 +5,7 @@ const crypto = require("crypto")
 const User = require("../models/User")
 const Token = require("../models/Token")
 const Organization = require("../models/Organization")
+const UserSession = require("../models/UserSession")
 const { sendVerificationEmail } = require("../utils/email")
 const { createSession, logActivity, getActivityDescription } = require("../utils/activityTracker")
 
@@ -194,6 +195,21 @@ router.post("/verify-token", async (req, res) => {
     user.lastLogin = new Date()
     await user.save()
 
+    // Close any existing open sessions for this user (prevents duplicate active sessions)
+    await UserSession.updateMany(
+      { 
+        userId: user._id, 
+        logoutTime: null,
+        status: { $in: ["online", "idle"] }
+      },
+      { 
+        $set: { 
+          logoutTime: new Date(), 
+          status: "offline" 
+        } 
+      }
+    )
+
     // Create session for tracking
     let sessionId = null
     if (user.organization) {
@@ -333,37 +349,57 @@ router.post("/logout", async (req, res) => {
       return res.json({ success: true, message: "Logged out" })
     }
 
-    // Try to get sessionId from JWT if not provided
+    // Try to get sessionId and userId from JWT
     let sid = sessionId
-    if (!sid && authHeader) {
+    let userId = null
+    if (authHeader) {
       try {
         const token = authHeader.split(" ")[1]
         const decoded = jwt.verify(token, process.env.JWT_SECRET)
-        sid = decoded.sessionId
+        if (!sid) sid = decoded.sessionId
+        userId = decoded.userId
       } catch (e) {
         // Token might be expired, that's ok
       }
     }
 
+    const { logActivity, getActivityDescription } = require("../utils/activityTracker")
+    
+    // Try to find session by sessionId first, then by userId
+    let session = null
     if (sid) {
-      const { endSession, logActivity, getActivityDescription } = require("../utils/activityTracker")
-      const UserSession = require("../models/UserSession")
+      session = await UserSession.findOne({ sessionId: sid }).populate("userId", "username")
+    }
+    if (!session && userId) {
+      // Find any active session for this user
+      session = await UserSession.findOne({ 
+        userId: userId, 
+        status: { $in: ["online", "idle"] },
+        logoutTime: null 
+      }).populate("userId", "username")
+    }
+    
+    if (session) {
+      // End the session - mark as offline and set logout time
+      session.status = "offline"
+      session.logoutTime = new Date()
       
-      const session = await UserSession.findOne({ sessionId: sid }).populate("userId", "username")
+      // Calculate final session duration
+      if (session.loginTime) {
+        session.totalActiveTime = Math.floor((new Date() - session.loginTime) / 1000)
+      }
       
-      if (session) {
-        await endSession(sid)
-        
-        // Log logout activity
-        if (session.organization && session.userId) {
-          await logActivity({
-            organizationId: session.organization,
-            userId: session.userId._id,
-            type: "logout",
-            description: getActivityDescription("logout", session.userId.username),
-            priority: "normal",
-          })
-        }
+      await session.save()
+      
+      // Log logout activity
+      if (session.organization && session.userId) {
+        await logActivity({
+          organizationId: session.organization,
+          userId: session.userId._id,
+          type: "logout",
+          description: getActivityDescription("logout", session.userId.username),
+          priority: "normal",
+        })
       }
     }
 
@@ -375,23 +411,18 @@ router.post("/logout", async (req, res) => {
 })
 
 //! Heartbeat to keep session alive
-const UserSession = require("../models/UserSession")
 const WorkLog = require("../models/WorkLog")
 const auth = require("../middleware/auth")
 
 router.post("/heartbeat", auth, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1]
+    const userId = req.user.userId
     
-    if (!token) {
-      return res.status(401).json({ error: "No token provided" })
-    }
-
-    // Find the active session
+    // Find the user's active session
     const session = await UserSession.findOne({
-      userId: req.user.id,
-      sessionToken: token,
-      isOnline: true,
+      userId: userId,
+      status: { $in: ["online", "idle"] },
+      logoutTime: null,
     })
 
     if (!session) {
@@ -399,42 +430,37 @@ router.post("/heartbeat", auth, async (req, res) => {
     }
 
     const now = new Date()
-    const timeSinceLastActivity = now - session.lastActivity
+    const timeSinceLastActivity = Math.floor((now - session.lastActivity) / 1000) // in seconds
 
-    // Update work duration (only if reasonable time gap - less than 5 minutes)
-    if (timeSinceLastActivity < 5 * 60 * 1000) {
-      session.workDurationMs += timeSinceLastActivity
-    } else {
-      // User was away, record a break
-      session.breakDuration = (session.breakDuration || 0) + timeSinceLastActivity
-    }
-
+    // Update session
     session.lastActivity = now
+    session.status = "online"
+    
+    // Update total active time (only if less than 2 minutes since last activity)
+    if (timeSinceLastActivity < 120) {
+      session.totalActiveTime = (session.totalActiveTime || 0) + timeSinceLastActivity
+    }
+    
     await session.save()
 
     // Update WorkLog for today
-    if (req.user.organization) {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
+    const user = await User.findById(userId)
+    if (user && user.organization) {
+      const workLog = await WorkLog.getOrCreateToday(userId, user.organization)
       
-      const workLog = await WorkLog.getOrCreateLog(
-        req.user.id,
-        req.user.organization,
-        today
-      )
-      
-      if (timeSinceLastActivity < 5 * 60 * 1000) {
-        workLog.totalWorkMs += timeSinceLastActivity
+      // Update active time (only if less than 2 minutes since last activity)
+      if (timeSinceLastActivity < 120) {
+        workLog.totalLoginTime = (workLog.totalLoginTime || 0) + timeSinceLastActivity
+        workLog.activeTime = (workLog.activeTime || 0) + timeSinceLastActivity
       }
-      workLog.lastActive = now
+      
       await workLog.save()
     }
 
     res.json({ 
       success: true, 
-      sessionId: session._id,
-      workDuration: session.getWorkHours(),
-      workDurationFormatted: session.formatWorkTime()
+      status: session.status,
+      totalActiveTime: session.totalActiveTime,
     })
   } catch (err) {
     console.error("Error in heartbeat:", err)

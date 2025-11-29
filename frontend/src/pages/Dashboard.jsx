@@ -479,7 +479,7 @@ const Dashboard = () => {
                   >
                     {user.username}
                   </motion.span>
-                  {user.role && (
+                  {user.organization && user.role && (
                     <span className={styles.userRoleBadge}>
                       ({user.role.charAt(0).toUpperCase() + user.role.slice(1)})
                     </span>
@@ -487,7 +487,9 @@ const Dashboard = () => {
                   <div className={styles.userTooltip}>
                     <div className={styles.tooltipTitle}>User Information</div>
                     <div className={styles.tooltipInfo}>Username: {user.username}</div>
-                    <div className={styles.tooltipInfo}>Role: {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}</div>
+                    {user.organization && user.role && (
+                      <div className={styles.tooltipInfo}>Role: {user.role?.charAt(0).toUpperCase() + user.role?.slice(1)}</div>
+                    )}
                     {/* Email removed for security purposes */}
                     <div className={styles.tooltipDate}>
                       Member since:{" "}

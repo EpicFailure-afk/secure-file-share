@@ -31,6 +31,7 @@ import {
   FaExclamationTriangle,
   FaCheckCircle,
   FaInfoCircle,
+  FaBroom,
 } from "react-icons/fa"
 import styles from "./ManagerDashboard.module.css"
 import {
@@ -41,6 +42,8 @@ import {
   getMonitorUser,
   getMonitorStats,
   getUserProfile,
+  cleanupSessions,
+  resetAllSessions,
 } from "../api"
 
 const ManagerDashboard = () => {
@@ -58,6 +61,7 @@ const ManagerDashboard = () => {
   const [lastRefresh, setLastRefresh] = useState(new Date())
   const [filters, setFilters] = useState({
     activityType: "",
+    activityPeriod: "today",
     sessionStatus: "active",
     period: "week",
   })
@@ -114,21 +118,86 @@ const ManagerDashboard = () => {
     }
   }
 
+  // Cleanup stale sessions
+  const handleCleanupSessions = async () => {
+    const result = await cleanupSessions()
+    if (!result.error) {
+      alert(`Cleaned up ${result.cleanedCount} stale sessions`)
+      loadLiveData()
+    } else {
+      alert(result.error)
+    }
+  }
+
+  // Reset all sessions (admin only)
+  const handleResetSessions = async () => {
+    if (!window.confirm("This will log out all users. Are you sure?")) {
+      return
+    }
+    const result = await resetAllSessions()
+    if (!result.error) {
+      alert(`Reset ${result.resetCount} sessions`)
+      loadLiveData()
+    } else {
+      alert(result.error)
+    }
+  }
+
   const loadActivities = async () => {
-    const data = await getMonitorActivity(1, 100, {
-      type: filters.activityType || undefined,
-    })
+    // Calculate date range based on period filter
+    let startDate = null
+    
+    switch (filters.activityPeriod || "today") {
+      case "today": {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        startDate = today
+        break
+      }
+      case "week": {
+        const weekAgo = new Date()
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        startDate = weekAgo
+        break
+      }
+      case "month": {
+        const monthAgo = new Date()
+        monthAgo.setMonth(monthAgo.getMonth() - 1)
+        startDate = monthAgo
+        break
+      }
+      case "all":
+        startDate = null
+        break
+      default: {
+        const defaultDate = new Date()
+        defaultDate.setHours(0, 0, 0, 0)
+        startDate = defaultDate
+      }
+    }
+
+    const params = {}
+    if (filters.activityType) {
+      params.type = filters.activityType
+    }
+    if (startDate) {
+      params.startDate = startDate.toISOString()
+    }
+
+    const data = await getMonitorActivity(1, 100, params)
     if (!data.error) {
-      setActivities(data.activities)
+      setActivities(data.activities || [])
     }
   }
 
   const loadSessions = async () => {
-    const data = await getMonitorSessions(1, 100, {
-      status: filters.sessionStatus || undefined,
-    })
+    const params = {}
+    if (filters.sessionStatus) {
+      params.status = filters.sessionStatus
+    }
+    const data = await getMonitorSessions(1, 100, params)
     if (!data.error) {
-      setSessions(data.sessions)
+      setSessions(data.sessions || [])
     }
   }
 
@@ -213,10 +282,19 @@ const ManagerDashboard = () => {
 
   const timeSince = (date) => {
     const seconds = Math.floor((new Date() - new Date(date)) / 1000)
-    if (seconds < 60) return "just now"
+    if (seconds < 60) return "now"
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
     return `${Math.floor(seconds / 86400)}d ago`
+  }
+
+  // For online users - show "Active now" if within last minute
+  const getActiveStatus = (lastActivity) => {
+    const seconds = Math.floor((new Date() - new Date(lastActivity)) / 1000)
+    if (seconds < 60) return "Active now"
+    if (seconds < 3600) return `Active ${Math.floor(seconds / 60)}m ago`
+    if (seconds < 86400) return `Active ${Math.floor(seconds / 3600)}h ago`
+    return `Active ${Math.floor(seconds / 86400)}d ago`
   }
 
   if (loading) {
@@ -244,6 +322,13 @@ const ManagerDashboard = () => {
         <div className={styles.headerRight}>
           <div className={styles.refreshInfo}>
             <span>Last updated: {formatTime(lastRefresh)}</span>
+            <button
+              className={styles.cleanupBtn}
+              onClick={handleCleanupSessions}
+              title="Clean up stale sessions"
+            >
+              <FaBroom /> Cleanup
+            </button>
             <button
               className={`${styles.refreshBtn} ${autoRefresh ? styles.active : ""}`}
               onClick={() => setAutoRefresh(!autoRefresh)}
@@ -405,7 +490,7 @@ const ManagerDashboard = () => {
                     </div>
                     <div className={styles.userFooter}>
                       <span className={styles.lastActivity}>
-                        Active {timeSince(user.lastActivity)}
+                        {getActiveStatus(user.lastActivity)}
                       </span>
                     </div>
                   </motion.div>
@@ -465,7 +550,22 @@ const ManagerDashboard = () => {
                 <option value="file_share">Shares</option>
                 <option value="file_delete">Deletes</option>
               </select>
+              <select
+                value={filters.activityPeriod || "today"}
+                onChange={(e) => setFilters({ ...filters, activityPeriod: e.target.value })}
+              >
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="all">All Time</option>
+              </select>
             </div>
+            {activities.length === 0 ? (
+              <div className={styles.emptyState}>
+                <FaHistory />
+                <p>No activities found for this period</p>
+              </div>
+            ) : (
             <div className={styles.activityTable}>
               <table>
                 <thead>
@@ -498,6 +598,7 @@ const ManagerDashboard = () => {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         )}
 

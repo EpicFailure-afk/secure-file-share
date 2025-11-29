@@ -233,7 +233,7 @@ router.post("/leave", auth, async (req, res) => {
   }
 })
 
-// Get organization members (admin/owner only)
+// Get organization members (manager/admin/owner)
 router.get("/members", auth, async (req, res) => {
   try {
     const { page = 1, limit = 20, status, role, search } = req.query
@@ -243,8 +243,8 @@ router.get("/members", auth, async (req, res) => {
       return res.status(400).json({ error: "You are not part of any organization" })
     }
 
-    // Check permissions
-    if (!["admin", "owner", "superadmin"].includes(user.role) && !user.permissions.canManageUsers) {
+    // Check permissions - managers can view members too
+    if (!["manager", "admin", "owner", "superadmin"].includes(user.role) && !user.permissions.canManageUsers) {
       return res.status(403).json({ error: "Permission denied" })
     }
 
@@ -732,26 +732,61 @@ router.delete("/", auth, async (req, res) => {
 router.get("/monitor/live", auth, managerMiddleware, async (req, res) => {
   try {
     const organizationId = req.userOrg
+    const mongoose = require("mongoose")
+    const orgObjectId = new mongoose.Types.ObjectId(organizationId)
 
-    // Get currently online users
+    // First, mark sessions as offline if no activity for 2+ minutes
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000)
+    await UserSession.updateMany(
+      {
+        organization: orgObjectId,
+        status: { $in: ["online", "idle"] },
+        logoutTime: null,
+        lastActivity: { $lt: twoMinutesAgo },
+      },
+      {
+        $set: { status: "idle" }
+      }
+    )
+    
+    // Mark as offline if no activity for 30+ minutes
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
+    await UserSession.updateMany(
+      {
+        organization: orgObjectId,
+        logoutTime: null,
+        lastActivity: { $lt: thirtyMinutesAgo },
+      },
+      {
+        $set: { 
+          status: "offline",
+          logoutTime: new Date()
+        }
+      }
+    )
+    
+    // Get currently online users (have logoutTime = null and recent activity)
     const activeSessions = await UserSession.find({
-      organization: organizationId,
+      organization: orgObjectId,
       status: { $in: ["online", "idle"] },
       logoutTime: null,
     }).populate("userId", "username email role jobTitle department avatar")
+
+    // Filter out sessions where user might be null
+    const validSessions = activeSessions.filter(s => s.userId)
 
     // Get today's activity count
     const startOfDay = new Date()
     startOfDay.setHours(0, 0, 0, 0)
 
     const todayActivityCount = await ActivityFeed.countDocuments({
-      organization: organizationId,
+      organization: orgObjectId,
       timestamp: { $gte: startOfDay },
     })
 
     // Get recent 10 activities
     const recentActivities = await ActivityFeed.find({
-      organization: organizationId,
+      organization: orgObjectId,
     })
       .sort({ timestamp: -1 })
       .limit(10)
@@ -761,7 +796,7 @@ router.get("/monitor/live", auth, managerMiddleware, async (req, res) => {
     const todayStats = await ActivityFeed.aggregate([
       {
         $match: {
-          organization: organizationId,
+          organization: orgObjectId,
           timestamp: { $gte: startOfDay },
         },
       },
@@ -777,8 +812,13 @@ router.get("/monitor/live", auth, managerMiddleware, async (req, res) => {
     const statsMap = {}
     todayStats.forEach(s => { statsMap[s._id] = s.count })
 
+    // Calculate if truly active (activity within last 2 minutes)
+    const isRecentlyActive = (lastActivity) => {
+      return (new Date() - new Date(lastActivity)) < 2 * 60 * 1000
+    }
+
     res.json({
-      onlineUsers: activeSessions.map(s => ({
+      onlineUsers: validSessions.map(s => ({
         userId: s.userId._id,
         username: s.userId.username,
         email: s.userId.email,
@@ -786,15 +826,16 @@ router.get("/monitor/live", auth, managerMiddleware, async (req, res) => {
         jobTitle: s.userId.jobTitle,
         department: s.userId.department,
         avatar: s.userId.avatar,
-        status: s.status,
+        status: isRecentlyActive(s.lastActivity) ? "online" : "idle",
         loginTime: s.loginTime,
         lastActivity: s.lastActivity,
         device: s.device,
         browser: s.browser,
         sessionDuration: s.getFormattedDuration(),
+        isActive: isRecentlyActive(s.lastActivity),
       })),
-      onlineCount: activeSessions.filter(s => s.status === "online").length,
-      idleCount: activeSessions.filter(s => s.status === "idle").length,
+      onlineCount: validSessions.filter(s => isRecentlyActive(s.lastActivity)).length,
+      idleCount: validSessions.filter(s => !isRecentlyActive(s.lastActivity)).length,
       todayActivityCount,
       todayStats: {
         logins: statsMap.login || 0,
@@ -830,12 +871,14 @@ router.get("/monitor/live", auth, managerMiddleware, async (req, res) => {
 router.get("/monitor/activity", auth, managerMiddleware, async (req, res) => {
   try {
     const organizationId = req.userOrg
+    const mongoose = require("mongoose")
+    const orgObjectId = new mongoose.Types.ObjectId(organizationId)
     const { page = 1, limit = 50, type, userId, startDate, endDate, priority } = req.query
 
-    const query = { organization: organizationId }
+    const query = { organization: orgObjectId }
 
     if (type) query.type = type
-    if (userId) query.userId = userId
+    if (userId) query.userId = new mongoose.Types.ObjectId(userId)
     if (priority) query.priority = priority
     if (startDate || endDate) {
       query.timestamp = {}
@@ -884,16 +927,22 @@ router.get("/monitor/activity", auth, managerMiddleware, async (req, res) => {
 router.get("/monitor/sessions", auth, managerMiddleware, async (req, res) => {
   try {
     const organizationId = req.userOrg
+    const mongoose = require("mongoose")
+    const orgObjectId = new mongoose.Types.ObjectId(organizationId)
     const { status, userId, startDate, endDate, page = 1, limit = 50 } = req.query
 
-    const query = { organization: organizationId }
+    const query = { organization: orgObjectId }
 
     if (status === "active") {
       query.logoutTime = null
+      query.status = { $in: ["online", "idle"] }
     } else if (status === "ended") {
-      query.logoutTime = { $ne: null }
+      query.$or = [
+        { logoutTime: { $ne: null } },
+        { status: "offline" }
+      ]
     }
-    if (userId) query.userId = userId
+    if (userId) query.userId = new mongoose.Types.ObjectId(userId)
     if (startDate || endDate) {
       query.loginTime = {}
       if (startDate) query.loginTime.$gte = new Date(startDate)
@@ -907,31 +956,38 @@ router.get("/monitor/sessions", auth, managerMiddleware, async (req, res) => {
       .limit(parseInt(limit))
       .populate("userId", "username email role jobTitle department avatar")
 
+    // Calculate if session is truly active (for duration display)
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000)
+    
     res.json({
-      sessions: sessions.map(s => ({
-        id: s._id,
-        sessionId: s.sessionId,
-        user: s.userId ? {
-          id: s.userId._id,
-          username: s.userId.username,
-          email: s.userId.email,
-          role: s.userId.role,
-          jobTitle: s.userId.jobTitle,
-          department: s.userId.department,
-          avatar: s.userId.avatar,
-        } : null,
-        status: s.status,
-        loginTime: s.loginTime,
-        logoutTime: s.logoutTime,
-        lastActivity: s.lastActivity,
-        duration: s.getFormattedDuration(),
-        durationSeconds: s.getDuration(),
-        device: s.device,
-        browser: s.browser,
-        os: s.os,
-        ipAddress: s.ipAddress,
-        activityBreakdown: s.activityBreakdown,
-      })),
+      sessions: sessions.filter(s => s.userId).map(s => {
+        const isActive = !s.logoutTime && s.status !== "offline" && s.lastActivity >= twoMinutesAgo
+        return {
+          id: s._id,
+          sessionId: s.sessionId,
+          user: {
+            id: s.userId._id,
+            username: s.userId.username,
+            email: s.userId.email,
+            role: s.userId.role,
+            jobTitle: s.userId.jobTitle,
+            department: s.userId.department,
+            avatar: s.userId.avatar,
+          },
+          status: isActive ? "online" : (s.logoutTime ? "offline" : "idle"),
+          isActive,
+          loginTime: s.loginTime,
+          logoutTime: s.logoutTime,
+          lastActivity: s.lastActivity,
+          duration: s.getFormattedDuration(),
+          durationSeconds: s.getDuration(),
+          device: s.device,
+          browser: s.browser,
+          os: s.os,
+          ipAddress: s.ipAddress,
+          activityBreakdown: s.activityBreakdown,
+        }
+      }),
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -949,6 +1005,8 @@ router.get("/monitor/sessions", auth, managerMiddleware, async (req, res) => {
 router.get("/monitor/worklogs", auth, managerMiddleware, async (req, res) => {
   try {
     const organizationId = req.userOrg
+    const mongoose = require("mongoose")
+    const orgObjectId = new mongoose.Types.ObjectId(organizationId)
     const { userId, startDate, endDate, page = 1, limit = 50 } = req.query
 
     // Default to last 7 days if no dates provided
@@ -959,10 +1017,10 @@ router.get("/monitor/worklogs", auth, managerMiddleware, async (req, res) => {
     start.setHours(0, 0, 0, 0)
 
     const query = {
-      organization: organizationId,
+      organization: orgObjectId,
       date: { $gte: start, $lte: end },
     }
-    if (userId) query.userId = userId
+    if (userId) query.userId = new mongoose.Types.ObjectId(userId)
 
     const total = await WorkLog.countDocuments(query)
     const workLogs = await WorkLog.find(query)
@@ -970,6 +1028,14 @@ router.get("/monitor/worklogs", auth, managerMiddleware, async (req, res) => {
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .populate("userId", "username email role jobTitle department avatar")
+
+    // Helper to format seconds to hours:minutes
+    const formatTime = (seconds) => {
+      if (!seconds || seconds === 0) return "0h 0m"
+      const hours = Math.floor(seconds / 3600)
+      const minutes = Math.floor((seconds % 3600) / 60)
+      return `${hours}h ${minutes}m`
+    }
 
     // Calculate totals
     const totals = await WorkLog.aggregate([
@@ -987,9 +1053,9 @@ router.get("/monitor/worklogs", auth, managerMiddleware, async (req, res) => {
     ])
 
     res.json({
-      workLogs: workLogs.map(w => ({
+      workLogs: workLogs.filter(w => w.userId).map(w => ({
         id: w._id,
-        user: w.userId ? {
+        user: {
           id: w.userId._id,
           username: w.userId.username,
           email: w.userId.email,
@@ -997,18 +1063,18 @@ router.get("/monitor/worklogs", auth, managerMiddleware, async (req, res) => {
           jobTitle: w.userId.jobTitle,
           department: w.userId.department,
           avatar: w.userId.avatar,
-        } : null,
+        },
         date: w.date,
-        totalLoginTime: w.totalLoginTime,
-        formattedLoginTime: w.getFormattedTime(w.totalLoginTime),
-        activeTime: w.activeTime,
-        formattedActiveTime: w.getFormattedTime(w.activeTime),
-        idleTime: w.idleTime,
+        totalLoginTime: w.totalLoginTime || 0,
+        formattedLoginTime: formatTime(w.totalLoginTime),
+        activeTime: w.activeTime || 0,
+        formattedActiveTime: formatTime(w.activeTime),
+        idleTime: w.idleTime || 0,
         firstLogin: w.firstLogin,
         lastLogout: w.lastLogout,
-        sessionCount: w.sessionCount,
-        activities: w.activities,
-        hourlyBreakdown: w.hourlyBreakdown,
+        sessionCount: w.sessionCount || 0,
+        activities: w.activities || { uploads: 0, downloads: 0, shares: 0, deletes: 0, views: 0 },
+        hourlyBreakdown: w.hourlyBreakdown || [],
       })),
       totals: totals[0] || {
         totalLoginTime: 0,
@@ -1435,5 +1501,63 @@ function formatDuration(seconds) {
   }
   return `${minutes}m`
 }
+
+// Cleanup stale sessions (manager can trigger this)
+router.post("/monitor/cleanup-sessions", auth, managerMiddleware, async (req, res) => {
+  try {
+    const organizationId = req.userOrg
+    
+    // Cleanup sessions with no activity for 30+ minutes
+    const cleanedCount = await UserSession.cleanupStaleSessions(organizationId)
+    
+    res.json({ 
+      success: true, 
+      message: `Cleaned up ${cleanedCount} stale sessions`,
+      cleanedCount 
+    })
+  } catch (err) {
+    console.error("Error cleaning up sessions:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Reset all sessions for organization (admin/owner only)
+router.post("/monitor/reset-sessions", auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId)
+    
+    if (!user.organization) {
+      return res.status(400).json({ error: "You are not part of any organization" })
+    }
+    
+    if (!["admin", "owner", "superadmin"].includes(user.role)) {
+      return res.status(403).json({ error: "Admin access required" })
+    }
+    
+    // Close all open sessions for this organization
+    const result = await UserSession.updateMany(
+      { 
+        organization: user.organization, 
+        logoutTime: null,
+        status: { $in: ["online", "idle"] }
+      },
+      { 
+        $set: { 
+          logoutTime: new Date(), 
+          status: "offline" 
+        } 
+      }
+    )
+    
+    res.json({ 
+      success: true, 
+      message: `Reset ${result.modifiedCount} sessions`,
+      resetCount: result.modifiedCount 
+    })
+  } catch (err) {
+    console.error("Error resetting sessions:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
 
 module.exports = router

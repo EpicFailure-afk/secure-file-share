@@ -6,7 +6,7 @@ import { motion } from "framer-motion"
 import { FaSun, FaMoon, FaBars, FaTimes, FaSignOutAlt, FaUserShield, FaBuilding, FaChartLine } from "react-icons/fa"
 import styles from "./Navbar.module.css"
 import logo from "../assets/image.png"
-import { getUserProfile } from "../api"
+import { getUserProfile, logoutUser } from "../api"
 
 const Navbar = () => {
   const [darkMode, setDarkMode] = useState(localStorage.getItem("darkMode") === "true")
@@ -113,13 +113,21 @@ const Navbar = () => {
     setDarkMode(!darkMode)
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("token")
-    setIsLoggedIn(false)
-    setIsAdmin(false)
-    setUsername("")
-    setUserRole("")
-    navigate("/")
+  const handleLogout = async () => {
+    try {
+      // Call backend to properly end session
+      await logoutUser()
+    } catch (err) {
+      console.error("Logout error:", err)
+    } finally {
+      localStorage.removeItem("token")
+      localStorage.removeItem("sessionId")
+      setIsLoggedIn(false)
+      setIsAdmin(false)
+      setUsername("")
+      setUserRole("")
+      navigate("/")
+    }
   }
 
   // Format role for display
@@ -169,7 +177,7 @@ const Navbar = () => {
               {username && (
                 <div className={styles.userInfo}>
                   <span className={styles.userName}>{username}</span>
-                  <span className={styles.userRole}>({formatRole(userRole)})</span>
+                  {isOrgMember && <span className={styles.userRole}>({formatRole(userRole)})</span>}
                 </div>
               )}
               <Link to="/dashboard" className={location.pathname === "/dashboard" ? styles.active : ""}>
@@ -226,7 +234,7 @@ const Navbar = () => {
             {username && (
               <div className={styles.userInfoMobile}>
                 <span className={styles.userName}>{username}</span>
-                <span className={styles.userRole}>({formatRole(userRole)})</span>
+                {isOrgMember && <span className={styles.userRole}>({formatRole(userRole)})</span>}
               </div>
             )}
             <Link to="/dashboard" className={location.pathname === "/dashboard" ? styles.active : ""}>

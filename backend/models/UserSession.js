@@ -122,4 +122,41 @@ userSessionSchema.statics.getTodaySessions = function(organizationId) {
   }).populate("userId", "username email role jobTitle department avatar")
 }
 
+// Static method to cleanup stale sessions (no activity for more than 30 minutes)
+userSessionSchema.statics.cleanupStaleSessions = async function(organizationId = null) {
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
+  
+  const query = {
+    status: { $in: ["online", "idle"] },
+    logoutTime: null,
+    lastActivity: { $lt: thirtyMinutesAgo },
+  }
+  
+  if (organizationId) {
+    query.organization = organizationId
+  }
+  
+  const result = await this.updateMany(query, {
+    $set: {
+      status: "offline",
+      logoutTime: new Date(),
+    }
+  })
+  
+  return result.modifiedCount
+}
+
+// Static method to get accurate online count for organization
+userSessionSchema.statics.getOnlineCount = async function(organizationId) {
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+  
+  // Only count sessions with recent activity (within 5 minutes)
+  return this.countDocuments({
+    organization: organizationId,
+    status: { $in: ["online", "idle"] },
+    logoutTime: null,
+    lastActivity: { $gte: fiveMinutesAgo },
+  })
+}
+
 module.exports = mongoose.model("UserSession", userSessionSchema)
