@@ -617,9 +617,9 @@
 /* Scan Notification Toast */
 .scanNotification {
   position: fixed;
-  bottom: 2rem;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -720,10 +720,12 @@
 
 @media (max-width: 768px) {
   .scanNotification {
-    left: 1rem;
-    right: 1rem;
-    transform: none;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
     min-width: auto;
+    width: 90%;
+    max-width: 400px;
   }
   
   .expirationInputGroup {
@@ -733,6 +735,242 @@
   .expirationSelect {
     min-width: 100%;
   }
+}
+
+/* Locked File Status */
+.statusLocked {
+  color: #f59e0b;
+  font-size: 0.9rem;
+  margin-left: 0.25rem;
+}
+
+/* Integrity Modal Styles */
+.integrityModal {
+  max-width: 700px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.integrityLoading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+}
+
+.integrityContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.integrityStatus {
+  padding: 1rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.integrityStatus.verified {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(21, 128, 61, 0.1));
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.integrityStatus.failed {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(185, 28, 28, 0.1));
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* New large status display */
+.integrityStatusLarge {
+  text-align: center;
+  padding: 2rem;
+}
+
+.verifiedLarge,
+.failedLarge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.checkmarkLarge {
+  font-size: 4rem;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+  padding: 1.5rem;
+  border-radius: 50%;
+  border: 3px solid #22c55e;
+}
+
+.warningLarge {
+  font-size: 4rem;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 1.5rem;
+  border-radius: 50%;
+  border: 3px solid #ef4444;
+}
+
+.verifiedLarge h3 {
+  color: #22c55e;
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.failedLarge h3 {
+  color: #ef4444;
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.verifiedLarge p,
+.failedLarge p {
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* Quick stats row */
+.quickStats {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+}
+
+.statItem svg {
+  color: #ff8a00;
+}
+
+.integrityMessage {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.integritySection {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.integritySection h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #ff8a00;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.integrityDetails {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.integrityDetails p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.integrityDetails strong {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.hashInfo {
+  font-size: 0.85rem;
+}
+
+.hashInfo p {
+  margin: 0.5rem 0 0.25rem 0;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.hashInfo code {
+  display: block;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  word-break: break-all;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.historyItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border-left: 3px solid #ff8a00;
+}
+
+.historyMain {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.historyMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+}
+
+.historyAction {
+  text-transform: capitalize;
+  color: #ff8a00;
+  font-weight: 500;
+}
+
+.historyUser {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.historyIP {
+  color: rgba(255, 255, 255, 0.5);
+  font-family: monospace;
+  font-size: 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
+.historyTime {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
 }
 
 /* Organization Section */

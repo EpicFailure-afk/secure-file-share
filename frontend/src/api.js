@@ -172,7 +172,7 @@ export const uploadFile = async (formData, progressCallback) => {
 
     const xhr = new XMLHttpRequest()
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       xhr.upload.addEventListener("progress", (event) => {
         if (event.lengthComputable) {
           const progress = Math.round((event.loaded / event.total) * 100)
@@ -181,19 +181,29 @@ export const uploadFile = async (formData, progressCallback) => {
       })
 
       xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(JSON.parse(xhr.responseText))
-        } else {
-          reject(new Error(`Upload failed with status ${xhr.status}`))
+        try {
+          const response = JSON.parse(xhr.responseText)
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(response)
+          } else {
+            resolve({ error: response.error || `Upload failed with status ${xhr.status}` })
+          }
+        } catch (e) {
+          resolve({ error: "Failed to parse server response" })
         }
       })
 
       xhr.addEventListener("error", () => {
-        reject(new Error("Upload failed"))
+        resolve({ error: "Network error during upload" })
+      })
+
+      xhr.addEventListener("timeout", () => {
+        resolve({ error: "Upload timed out" })
       })
 
       xhr.open("POST", `/api/files/upload`)
       xhr.setRequestHeader("Authorization", token)
+      xhr.timeout = 300000 // 5 minute timeout for large files
       xhr.send(formData)
     })
   } catch (error) {
@@ -835,16 +845,27 @@ export const downloadFileWithScan = async (fileId, fileName, skipScan = false) =
       },
     })
 
-    // Extract scan info from headers
-    const scanInfo = {
+    // Extract scan info from headers - only if headers exist
+    const hasScanHeaders = response.headers.get("X-Scan-Status") !== null
+    const scanInfo = hasScanHeaders ? {
       safe: response.headers.get("X-Scan-Safe") === "true",
       scanStatus: response.headers.get("X-Scan-Status"),
       scanTime: response.headers.get("X-Scan-Time"),
       message: response.headers.get("X-Scan-Message")
-    }
+    } : null
 
     if (!response.ok) {
       const errorData = await response.json()
+      
+      // Handle locked file separately - not a scan issue
+      if (errorData.isLocked) {
+        return { 
+          error: errorData.error || "File is locked",
+          isLocked: true,
+          scanInfo: null  // No scan was performed
+        }
+      }
+      
       return { 
         error: errorData.error || "Download failed",
         scanResult: errorData.scanResult,
@@ -869,7 +890,76 @@ export const downloadFileWithScan = async (fileId, fileName, skipScan = false) =
   }
 }
 
-// Revoke file access
+// Lock file with password
+export const lockFile = async (fileId, password) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/files/${fileId}/lock`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Lock File Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Unlock file with password
+export const unlockFile = async (fileId, password) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/files/${fileId}/unlock`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Unlock File Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Verify file lock password
+export const verifyFileLock = async (fileId, password) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/files/${fileId}/verify-lock`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Verify Lock Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Revoke file access (deprecated - use lockFile instead)
 export const revokeFileAccess = async (fileId, reason) => {
   try {
     const token = localStorage.getItem("token")

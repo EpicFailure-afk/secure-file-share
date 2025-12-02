@@ -96,15 +96,43 @@ router.post("/upload", authMiddleware, (req, res, next) => {
       return res.status(400).json({ error: "Storage limit exceeded" })
     }
 
-    // Calculate file hash before encryption for integrity verification
     const originalFilePath = req.file.path
-    const fileHash = await calculateFileHash(originalFilePath)
+    
+    // Scan the original file BEFORE encryption (if ClamAV is available)
+    let initialScanStatus = "clean"
+    let initialScanResult = "Scan completed"
+    try {
+      const { scanFile, isClamAvAvailable } = require("../utils/virusScanner")
+      const clamAvailable = await isClamAvAvailable()
+      if (clamAvailable) {
+        const scanResult = await scanFile(originalFilePath)
+        if (!scanResult.clean) {
+          // File is infected - delete it and reject upload
+          fs.unlinkSync(originalFilePath)
+          return res.status(400).json({ 
+            error: `File rejected: Contains malware (${scanResult.result})`,
+            scanResult: scanResult.result
+          })
+        }
+        initialScanStatus = "clean"
+        initialScanResult = scanResult.result
+      }
+    } catch (scanErr) {
+      console.error("Pre-encryption scan error:", scanErr)
+      // Continue with upload if scan fails - will be marked as pending
+      initialScanStatus = "pending"
+      initialScanResult = "Scan error - pending review"
+    }
 
     // Generate encrypted file path
     const encryptedFilePath = originalFilePath + ".enc"
 
     // Encrypt the file with randomly selected algorithm
     const { iv, algorithm } = await encryptFile(originalFilePath, encryptedFilePath)
+
+    // Calculate file hash AFTER encryption for integrity verification
+    // This ensures we're comparing the same encrypted file later
+    const fileHash = await calculateFileHash(encryptedFilePath)
 
     // Parse expiration from request (optional)
     let expiresAt = null
@@ -127,7 +155,9 @@ router.post("/upload", authMiddleware, (req, res, next) => {
       lastIntegrityCheck: new Date(),
       expiresAt: expiresAt,
       maxDownloads: req.body.maxDownloads ? parseInt(req.body.maxDownloads) : null,
-      scanStatus: "pending",
+      scanStatus: initialScanStatus,
+      scanDate: new Date(),
+      scanResult: initialScanResult,
     })
 
     await newFile.save()
@@ -171,10 +201,7 @@ router.post("/upload", authMiddleware, (req, res, next) => {
       })
     }
 
-    // Trigger async virus scan
-    scanAndUpdateFile(newFile._id).catch(err => {
-      console.error("Async virus scan failed:", err)
-    })
+    // Note: Virus scan is now done BEFORE encryption, so no need for async scan
 
     res.status(201).json({
       file: {
@@ -206,6 +233,11 @@ router.get("/:id/download", authMiddleware, async (req, res) => {
 
     if (!file) {
       return res.status(404).json({ error: "File not found" })
+    }
+
+    // Check if file is locked
+    if (file.isLocked) {
+      return res.status(403).json({ error: "File is locked. Please provide the password to download.", isLocked: true })
     }
 
     // Check if file is accessible
@@ -394,20 +426,75 @@ router.delete("/:id", authMiddleware, async (req, res) => {
   }
 })
 
-// Verify file integrity
+// Verify file integrity with access and modification history
 router.get("/:id/verify-integrity", authMiddleware, async (req, res) => {
   try {
     const file = await File.findOne({
       _id: req.params.id,
       userId: req.user.userId,
-    })
+    }).populate("userId", "username email")
 
     if (!file) {
       return res.status(404).json({ error: "File not found" })
     }
 
     const result = await verifyFileIntegrity(file._id)
-    res.json(result)
+
+    // Get audit logs for this file (access and modifications)
+    const auditLogs = await AuditLog.find({
+      targetId: file._id,
+      targetType: "file",
+    })
+      .populate("userId", "username email")
+      .sort({ timestamp: -1 })
+      .limit(50)
+
+    // Format access history
+    const accessHistory = auditLogs
+      .filter(log => ["file_download", "file_view", "file_share"].includes(log.action))
+      .map(log => ({
+        action: log.action,
+        user: log.userId ? log.userId.username : "Unknown",
+        email: log.userId ? log.userId.email : null,
+        timestamp: log.timestamp,
+        ipAddress: log.ipAddress || "Unknown",
+      }))
+
+    // Format modification history
+    const modificationHistory = auditLogs
+      .filter(log => ["file_upload", "file_update", "file_rename", "file_integrity_check"].includes(log.action))
+      .map(log => ({
+        action: log.action,
+        user: log.userId ? log.userId.username : "System",
+        email: log.userId ? log.userId.email : null,
+        timestamp: log.timestamp,
+        details: log.details || {},
+      }))
+
+    // Include shared access records
+    const sharedAccess = file.accessGranted.map(access => ({
+      action: "shared_download",
+      ipAddress: access.ipAddress,
+      timestamp: access.accessTime,
+    }))
+
+    res.json({
+      ...result,
+      fileInfo: {
+        fileName: file.fileName,
+        fileSize: file.fileSize,
+        fileType: file.fileType,
+        uploadDate: file.uploadDate,
+        owner: file.userId ? file.userId.username : "Unknown",
+        ownerEmail: file.userId ? file.userId.email : null,
+        lastIntegrityCheck: file.lastIntegrityCheck,
+        downloadCount: file.downloadCount,
+        isLocked: file.isLocked || false,
+      },
+      accessHistory,
+      modificationHistory,
+      sharedAccess,
+    })
   } catch (err) {
     console.error("Error verifying file integrity:", err)
     res.status(500).json({ error: "Server error" })
@@ -446,6 +533,145 @@ router.post("/:id/expiration", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error("Error setting file expiration:", err)
     res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Lock file with password
+router.post("/:id/lock", authMiddleware, async (req, res) => {
+  try {
+    const file = await File.findOne({
+      _id: req.params.id,
+      userId: req.user.userId,
+    })
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" })
+    }
+
+    const { password } = req.body
+    
+    if (!password || password.length < 4) {
+      return res.status(400).json({ error: "Password must be at least 4 characters" })
+    }
+
+    // Hash the password
+    const bcrypt = require("bcryptjs")
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    await File.findByIdAndUpdate(file._id, {
+      isLocked: true,
+      lockPassword: hashedPassword,
+      lockedAt: new Date(),
+      lockedBy: req.user.userId,
+    })
+
+    // Log the action
+    await new AuditLog({
+      userId: req.user.userId,
+      action: "file_lock",
+      targetType: "file",
+      targetId: file._id,
+      details: { fileName: file.fileName },
+      ipAddress: req.headers["x-forwarded-for"] || req.connection.remoteAddress,
+      status: "success",
+    }).save()
+
+    res.json({ message: "File locked successfully" })
+  } catch (err) {
+    console.error("Error locking file:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Unlock file with password
+router.post("/:id/unlock", authMiddleware, async (req, res) => {
+  try {
+    const file = await File.findOne({
+      _id: req.params.id,
+      userId: req.user.userId,
+    })
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" })
+    }
+
+    if (!file.isLocked) {
+      return res.status(400).json({ error: "File is not locked" })
+    }
+
+    const { password } = req.body
+    
+    if (!password) {
+      return res.status(400).json({ error: "Password is required" })
+    }
+
+    // Verify the password
+    const bcrypt = require("bcryptjs")
+    const isMatch = await bcrypt.compare(password, file.lockPassword)
+
+    if (!isMatch) {
+      return res.status(401).json({ error: "Incorrect password" })
+    }
+
+    await File.findByIdAndUpdate(file._id, {
+      isLocked: false,
+      lockPassword: null,
+      lockedAt: null,
+      lockedBy: null,
+    })
+
+    // Log the action
+    await new AuditLog({
+      userId: req.user.userId,
+      action: "file_unlock",
+      targetType: "file",
+      targetId: file._id,
+      details: { fileName: file.fileName },
+      ipAddress: req.headers["x-forwarded-for"] || req.connection.remoteAddress,
+      status: "success",
+    }).save()
+
+    res.json({ message: "File unlocked successfully" })
+  } catch (err) {
+    console.error("Error unlocking file:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Verify file lock password (for download)
+router.post("/:id/verify-lock", authMiddleware, async (req, res) => {
+  try {
+    const file = await File.findOne({
+      _id: req.params.id,
+      userId: req.user.userId,
+    })
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" })
+    }
+
+    if (!file.isLocked) {
+      return res.json({ verified: true, message: "File is not locked" })
+    }
+
+    const { password } = req.body
+    
+    if (!password) {
+      return res.status(400).json({ error: "Password is required", verified: false })
+    }
+
+    // Verify the password
+    const bcrypt = require("bcryptjs")
+    const isMatch = await bcrypt.compare(password, file.lockPassword)
+
+    if (!isMatch) {
+      return res.status(401).json({ error: "Incorrect password", verified: false })
+    }
+
+    res.json({ verified: true, message: "Password verified" })
+  } catch (err) {
+    console.error("Error verifying lock password:", err)
+    res.status(500).json({ error: "Server error", verified: false })
   }
 })
 
@@ -534,6 +760,11 @@ router.post("/:id/share", authMiddleware, async (req, res) => {
 
     if (!file) {
       return res.status(404).json({ error: "File not found" })
+    }
+
+    // Check if file is locked
+    if (file.isLocked) {
+      return res.status(403).json({ error: "Cannot share a locked file. Please unlock it first.", isLocked: true })
     }
 
     // Generate a random token

@@ -24,13 +24,17 @@ import {
   FaVirus,
   FaClock,
   FaExclamationTriangle,
-  FaBan,
   FaBuilding,
   FaPlus,
   FaKey,
+  FaLock,
+  FaUnlock,
+  FaHistory,
+  FaEye,
+  FaTimes,
 } from "react-icons/fa"
 import styles from "./Dashboard.module.css"
-import { getUserFiles, uploadFile, deleteFile, shareFile, downloadFile, getUserProfile, verifyUserFileIntegrity, revokeFileAccess, setFileExpiration, preScanFile, downloadFileWithScan, createOrganization, joinOrganization, getOrganizationDetails } from "../api"
+import { getUserFiles, uploadFile, deleteFile, shareFile, downloadFile, getUserProfile, verifyUserFileIntegrity, lockFile, unlockFile, setFileExpiration, preScanFile, downloadFileWithScan, createOrganization, joinOrganization, getOrganizationDetails } from "../api"
 
 const Dashboard = () => {
   const [files, setFiles] = useState([])
@@ -54,6 +58,17 @@ const Dashboard = () => {
   const [scanNotification, setScanNotification] = useState(null)
   const [isDownloading, setIsDownloading] = useState(null)
   const [uploadFileName, setUploadFileName] = useState(null)
+  
+  // Lock file modal states
+  const [lockModalOpen, setLockModalOpen] = useState(false)
+  const [lockModalType, setLockModalType] = useState("lock") // "lock" or "unlock"
+  const [lockFileId, setLockFileId] = useState(null)
+  const [lockPassword, setLockPassword] = useState("")
+  
+  // Integrity modal states
+  const [integrityModalOpen, setIntegrityModalOpen] = useState(false)
+  const [integrityData, setIntegrityData] = useState(null)
+  const [integrityLoading, setIntegrityLoading] = useState(false)
   
   // Organization states
   const [organization, setOrganization] = useState(null)
@@ -120,25 +135,27 @@ const Dashboard = () => {
     fetchData()
   }, [navigate])
 
-  const fetchFiles = async () => {
-    setLoading(true)
-    setError(null)
+  const fetchFiles = async (showLoading = false) => {
+    if (showLoading) setLoading(true)
     try {
       const response = await getUserFiles()
       if (response.error) {
-        setError(response.error)
         if (response.error === "Unauthorized") {
           localStorage.removeItem("token")
           navigate("/login")
         }
+        // Don't show error for background refreshes
+        if (showLoading) setError(response.error)
       } else {
         setFiles(response.files || [])
       }
     } catch (err) {
-      setError("Failed to fetch files. Please try again.")
+      if (showLoading) {
+        setError("Failed to fetch files. Please try again.")
+      }
       console.error("Fetch Files Error:", err)
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }
 
@@ -166,6 +183,7 @@ const Dashboard = () => {
     setIsUploading(true)
     setUploadProgress(0)
     setUploadFileName(file.name)
+    setError(null)
 
     try {
       const formData = new FormData()
@@ -178,8 +196,8 @@ const Dashboard = () => {
       if (response.error) {
         setError(response.error)
       } else {
-        setFiles([...files, response.file])
-        setError(null)
+        // Refresh the file list from server to ensure consistency
+        await fetchFiles()
         // Show success notification
         setScanNotification({
           safe: true,
@@ -196,8 +214,11 @@ const Dashboard = () => {
       setIsUploading(false)
       setUploadProgress(0)
       setUploadFileName(null)
+      // Reset the file input
+      e.target.value = ""
     }
   }
+  
 
   const handleDeleteFile = async (fileId) => {
     try {
@@ -221,7 +242,19 @@ const Dashboard = () => {
     try {
       const result = await downloadFileWithScan(fileId, fileName)
       
-      // Show scan notification to user
+      // Handle locked file - show error instead of malware warning
+      if (result.isLocked) {
+        setError("This file is locked. Please unlock it before downloading.")
+        return
+      }
+      
+      // Handle other errors
+      if (result.error && !result.isLocked) {
+        setError(result.error)
+        return
+      }
+      
+      // Show scan notification to user only if scan was performed
       if (result.scanInfo) {
         const { safe, scanStatus, scanTime, message } = result.scanInfo
         setScanNotification({
@@ -315,29 +348,83 @@ const Dashboard = () => {
   }
 
   const handleVerifyIntegrity = async (fileId) => {
+    setIntegrityLoading(true)
+    setIntegrityModalOpen(true)
+    setActiveDropdown(null)
     try {
       const result = await verifyUserFileIntegrity(fileId)
-      if (result.verified) {
-        alert("File integrity verified successfully!")
-      } else {
-        alert(`Integrity check failed: ${result.message}`)
-      }
+      setIntegrityData(result)
     } catch (err) {
       setError("Failed to verify file integrity.")
+      setIntegrityModalOpen(false)
+    } finally {
+      setIntegrityLoading(false)
     }
   }
 
-  const handleRevokeFile = async (fileId) => {
-    if (!window.confirm("Are you sure you want to revoke access to this file?")) return
+  const handleLockFile = async (fileId, isCurrentlyLocked) => {
+    setLockFileId(fileId)
+    setLockModalType(isCurrentlyLocked ? "unlock" : "lock")
+    setLockPassword("")
+    setLockModalOpen(true)
+    setActiveDropdown(null)
+  }
+
+  const confirmLockUnlock = async () => {
+    if (!lockFileId || !lockPassword) {
+      setError("Password is required")
+      return
+    }
+    
+    if (lockPassword.length < 4) {
+      setError("Password must be at least 4 characters")
+      return
+    }
+    
+    setError(null)
+    const fileName = files.find(f => f._id === lockFileId)?.fileName || "File"
+    
     try {
-      const response = await revokeFileAccess(fileId, "Revoked by owner")
+      let response
+      if (lockModalType === "lock") {
+        response = await lockFile(lockFileId, lockPassword)
+      } else {
+        response = await unlockFile(lockFileId, lockPassword)
+      }
+      
       if (response.error) {
         setError(response.error)
       } else {
-        fetchFiles()
+        // Close modal first
+        setLockModalOpen(false)
+        setLockFileId(null)
+        setLockPassword("")
+        
+        // Update the file in state immediately for instant UI feedback
+        setFiles(prevFiles => prevFiles.map(f => 
+          f._id === lockFileId 
+            ? { ...f, isLocked: lockModalType === "lock" }
+            : f
+        ))
+        
+        // Show success notification
+        setScanNotification({
+          safe: true,
+          status: "success",
+          message: response.message,
+          fileName
+        })
+        setTimeout(() => setScanNotification(null), 5000)
+        
+        // Also refresh from server to ensure consistency
+        await fetchFiles()
       }
     } catch (err) {
-      setError("Failed to revoke file access.")
+      setError(`Failed to ${lockModalType} file.`)
+    } finally {
+      setLockModalOpen(false)
+      setLockFileId(null)
+      setLockPassword("")
     }
   }
 
@@ -351,20 +438,29 @@ const Dashboard = () => {
 
   const confirmSetExpiration = async () => {
     if (!expirationFileId) return
+    setError(null)
+    const fileName = files.find(f => f._id === expirationFileId)?.fileName || "File"
+    
     try {
       const response = await setFileExpiration(expirationFileId, parseInt(expirationValue), expirationUnit)
       if (response.error) {
         setError(response.error)
       } else {
+        // Close modal first
+        setExpirationModalOpen(false)
+        setExpirationFileId(null)
+        
         const expiryDate = new Date(response.expiresAt).toLocaleDateString()
         setScanNotification({
           safe: true,
           status: "success",
           message: `File expiration set! Expires on ${expiryDate}`,
-          fileName: files.find(f => f._id === expirationFileId)?.fileName || "File"
+          fileName
         })
         setTimeout(() => setScanNotification(null), 5000)
-        fetchFiles()
+        
+        // Refresh file list
+        await fetchFiles()
       }
     } catch (err) {
       setError("Failed to set file expiration.")
@@ -631,6 +727,9 @@ const Dashboard = () => {
                   {file.integrityVerified === false && (
                     <FaExclamationTriangle className={styles.statusWarning} title="Integrity not verified" />
                   )}
+                  {file.isLocked && (
+                    <FaLock className={styles.statusLocked} title="File is locked" />
+                  )}
                   {file.expiresAt && (
                     <span className={styles.expiryBadge} title={`Expires: ${formatDate(file.expiresAt)}`}>
                       <FaClock /> {formatDate(file.expiresAt)}
@@ -679,8 +778,8 @@ const Dashboard = () => {
                       <button onClick={() => handleSetExpiration(file._id)}>
                         <FaClock /> Set Expiration
                       </button>
-                      <button onClick={() => handleRevokeFile(file._id)}>
-                        <FaBan /> Revoke Access
+                      <button onClick={() => handleLockFile(file._id, file.isLocked)}>
+                        <FaKey /> {file.isLocked ? "Unlock File" : "Lock File"}
                       </button>
                       <button onClick={() => handleDeleteFile(file._id)}>
                         <FaTrash /> Delete
@@ -763,19 +862,168 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Lock/Unlock File Modal */}
+      {lockModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setLockModalOpen(false)}>
+          <motion.div 
+            className={styles.modal}
+            onClick={(e) => e.stopPropagation()}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+          >
+            <h3>
+              {lockModalType === "lock" ? <FaLock /> : <FaUnlock />}
+              {" "}
+              {lockModalType === "lock" ? "Lock File with Password" : "Unlock File"}
+            </h3>
+            <p>
+              {lockModalType === "lock" 
+                ? "Set a password to protect this file. You'll need this password to download or unlock it."
+                : "Enter the password to unlock this file."}
+            </p>
+            <div className={styles.formGroup}>
+              <input
+                type="password"
+                value={lockPassword}
+                onChange={(e) => setLockPassword(e.target.value)}
+                placeholder={lockModalType === "lock" ? "Create a password (min 4 characters)" : "Enter password"}
+                className={styles.formInput}
+                autoFocus
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.confirmBtn} onClick={confirmLockUnlock}>
+                {lockModalType === "lock" ? "Lock File" : "Unlock File"}
+              </button>
+              <button className={styles.closeBtn} onClick={() => setLockModalOpen(false)}>
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Integrity Verification Modal */}
+      {integrityModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => setIntegrityModalOpen(false)}>
+          <motion.div 
+            className={`${styles.modal} ${styles.integrityModal}`}
+            onClick={(e) => e.stopPropagation()}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+          >
+            <div className={styles.modalHeader}>
+              <h3><FaShieldAlt /> File Integrity Report</h3>
+              <button className={styles.modalClose} onClick={() => setIntegrityModalOpen(false)}>
+                <FaTimes />
+              </button>
+            </div>
+            
+            {integrityLoading ? (
+              <div className={styles.integrityLoading}>
+                <div className={styles.spinner}></div>
+                <p>Verifying file integrity...</p>
+              </div>
+            ) : integrityData ? (
+              <div className={styles.integrityContent}>
+                {/* Verification Status with Large Checkmark */}
+                <div className={styles.integrityStatusLarge}>
+                  {integrityData.verified ? (
+                    <div className={styles.verifiedLarge}>
+                      <FaCheck className={styles.checkmarkLarge} />
+                      <h3>File Integrity Verified</h3>
+                      <p>This file has not been modified since upload</p>
+                    </div>
+                  ) : (
+                    <div className={styles.failedLarge}>
+                      <FaExclamationTriangle className={styles.warningLarge} />
+                      <h3>Integrity Check Failed</h3>
+                      <p>{integrityData.message}</p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Quick Stats */}
+                {integrityData.fileInfo && (
+                  <div className={styles.quickStats}>
+                    <div className={styles.statItem}>
+                      <FaDownload />
+                      <span>{integrityData.fileInfo.downloadCount} Downloads</span>
+                    </div>
+                    <div className={styles.statItem}>
+                      {integrityData.fileInfo.isLocked ? <FaLock /> : <FaUnlock />}
+                      <span>{integrityData.fileInfo.isLocked ? "Locked" : "Unlocked"}</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Access History with IP addresses */}
+                {integrityData.accessHistory && integrityData.accessHistory.length > 0 && (
+                  <div className={styles.integritySection}>
+                    <h4><FaEye /> Recent Access</h4>
+                    <div className={styles.historyList}>
+                      {integrityData.accessHistory.slice(0, 5).map((access, idx) => (
+                        <div key={idx} className={styles.historyItem}>
+                          <div className={styles.historyMain}>
+                            <span className={styles.historyAction}>{access.action.replace(/_/g, " ")}</span>
+                            <span className={styles.historyUser}>{access.user}</span>
+                          </div>
+                          <div className={styles.historyMeta}>
+                            {access.ipAddress && <span className={styles.historyIP}>IP: {access.ipAddress}</span>}
+                            <span className={styles.historyTime}>{new Date(access.timestamp).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Shared Access with IP addresses */}
+                {integrityData.sharedAccess && integrityData.sharedAccess.length > 0 && (
+                  <div className={styles.integritySection}>
+                    <h4><FaShare /> Shared Downloads</h4>
+                    <div className={styles.historyList}>
+                      {integrityData.sharedAccess.slice(0, 5).map((share, idx) => (
+                        <div key={idx} className={styles.historyItem}>
+                          <div className={styles.historyMain}>
+                            <span className={styles.historyAction}>Downloaded via share link</span>
+                          </div>
+                          <div className={styles.historyMeta}>
+                            <span className={styles.historyIP}>IP: {share.ipAddress}</span>
+                            <span className={styles.historyTime}>{new Date(share.timestamp).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p>No integrity data available.</p>
+            )}
+            
+            <div className={styles.modalActions}>
+              <button className={styles.closeBtn} onClick={() => setIntegrityModalOpen(false)}>
+                Close
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Scan Notification Toast */}
       {scanNotification && (
         <motion.div
           className={`${styles.scanNotification} ${scanNotification.safe ? styles.scanSafe : styles.scanDanger}`}
-          initial={{ opacity: 0, y: 50, x: "-50%" }}
-          animate={{ opacity: 1, y: 0, x: "-50%" }}
-          exit={{ opacity: 0, y: 50, x: "-50%" }}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
         >
           <div className={styles.scanNotificationIcon}>
             {scanNotification.safe ? <FaShieldAlt /> : <FaVirus />}
           </div>
           <div className={styles.scanNotificationContent}>
-            <strong>{scanNotification.safe ? "Scan Complete - Safe" : "Security Warning"}</strong>
+            <strong>{scanNotification.safe ? "Success" : "Security Warning"}</strong>
             <p>{scanNotification.message}</p>
             {scanNotification.time && (
               <span className={styles.scanTime}>Scanned in {scanNotification.time}ms</span>

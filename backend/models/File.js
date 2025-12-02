@@ -127,6 +127,24 @@ const fileSchema = new mongoose.Schema({
     type: Number,
     default: null, // null means unlimited
   },
+  // File lock with password
+  isLocked: {
+    type: Boolean,
+    default: false,
+  },
+  lockPassword: {
+    type: String,
+    default: null, // Hashed password for file lock
+  },
+  lockedAt: {
+    type: Date,
+    default: null,
+  },
+  lockedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    default: null,
+  },
 })
 
 // Index for expired files cleanup

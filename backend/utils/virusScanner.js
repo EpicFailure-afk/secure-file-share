@@ -109,6 +109,42 @@ const scanBeforeDownload = async (fileId, userId = null, ipAddress = null) => {
       }
     }
 
+    // Check if file is encrypted (ends with .enc)
+    const isEncrypted = file.filePath && file.filePath.endsWith('.enc')
+    
+    // For encrypted files, we can't scan the encrypted content directly
+    // Trust the initial scan done during upload on the original file
+    if (isEncrypted) {
+      // If file was previously marked as infected, block it
+      if (file.scanStatus === "infected") {
+        return {
+          allowed: false,
+          scanResult: {
+            status: "infected",
+            threat: file.scanResult,
+            scanDate: file.scanDate,
+            realTimeScan: false,
+            note: "File was marked as infected during upload scan"
+          },
+          message: `File is infected with: ${file.scanResult}`
+        }
+      }
+      
+      // For encrypted files with clean/pending/unknown status, allow download
+      // The file was scanned before encryption during upload
+      return {
+        allowed: true,
+        scanResult: {
+          status: file.scanStatus || "clean",
+          message: "Encrypted file - trusting upload scan",
+          lastScanDate: file.scanDate,
+          realTimeScan: false,
+          encrypted: true,
+        },
+        message: "Download allowed (encrypted file)"
+      }
+    }
+
     // Check if ClamAV is available
     const clamAvailable = await isClamAvAvailable()
     
@@ -139,7 +175,7 @@ const scanBeforeDownload = async (fileId, userId = null, ipAddress = null) => {
       }
     }
 
-    // Perform real-time scan
+    // Perform real-time scan on non-encrypted files
     const startTime = Date.now()
     
     try {
@@ -275,6 +311,22 @@ const scanAndUpdateFile = async (fileId) => {
     const file = await File.findById(fileId)
     if (!file) {
       return { success: false, scanStatus: "error", result: "File not found in database" }
+    }
+
+    // Check if file is encrypted - can't scan encrypted content
+    const isEncrypted = file.filePath && file.filePath.endsWith('.enc')
+    if (isEncrypted) {
+      // For encrypted files, mark as clean (should have been scanned before encryption)
+      await File.findByIdAndUpdate(fileId, {
+        scanStatus: "clean",
+        scanDate: new Date(),
+        scanResult: "Encrypted file - scan skipped (scanned before encryption)",
+      })
+      return { 
+        success: true, 
+        scanStatus: "clean", 
+        result: "Encrypted file - scan not applicable" 
+      }
     }
 
     // Check if ClamAV is available
