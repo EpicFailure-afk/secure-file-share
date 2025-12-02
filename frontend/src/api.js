@@ -1277,10 +1277,15 @@ export const getMonitorActivity = async (page = 1, limit = 50, filters = {}) => 
       return { error: "Unauthorized" }
     }
 
+    // Clean up filters to remove undefined values
+    const cleanFilters = Object.fromEntries(
+      Object.entries(filters).filter(([_, v]) => v !== undefined && v !== null && v !== "")
+    )
+
     const params = new URLSearchParams({
-      page,
-      limit,
-      ...filters,
+      page: page.toString(),
+      limit: limit.toString(),
+      ...cleanFilters,
     })
 
     const response = await fetch(`/api/organization/monitor/activity?${params}`, {
@@ -1303,10 +1308,15 @@ export const getMonitorSessions = async (page = 1, limit = 50, filters = {}) => 
       return { error: "Unauthorized" }
     }
 
+    // Clean up filters to remove undefined values
+    const cleanFilters = Object.fromEntries(
+      Object.entries(filters).filter(([_, v]) => v !== undefined && v !== null && v !== "")
+    )
+
     const params = new URLSearchParams({
-      page,
-      limit,
-      ...filters,
+      page: page.toString(),
+      limit: limit.toString(),
+      ...cleanFilters,
     })
 
     const response = await fetch(`/api/organization/monitor/sessions?${params}`, {
@@ -1403,6 +1413,48 @@ export const getMonitorFile = async (fileId) => {
     return await response.json()
   } catch (error) {
     console.error("Get Monitor File Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Cleanup stale sessions
+export const cleanupSessions = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/monitor/cleanup-sessions`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Cleanup Sessions Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Reset all sessions (admin only)
+export const resetAllSessions = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/organization/monitor/reset-sessions`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Reset Sessions Error:", error)
     return { error: "Network error. Please try again." }
   }
 }

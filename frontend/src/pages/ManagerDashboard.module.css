@@ -90,6 +90,25 @@
   border-color: rgba(76, 175, 80, 0.5);
 }
 
+.cleanupBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 152, 0, 0.2);
+  border: 1px solid rgba(255, 152, 0, 0.4);
+  border-radius: 8px;
+  color: #ff9800;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cleanupBtn:hover {
+  background: rgba(255, 152, 0, 0.3);
+  border-color: rgba(255, 152, 0, 0.6);
+}
+
 .spinning {
   animation: spin 1s linear infinite;
 }

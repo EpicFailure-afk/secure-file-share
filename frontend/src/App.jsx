@@ -54,13 +54,13 @@ function App() {
     // Send initial heartbeat
     sendHeartbeat()
 
-    // Set up interval for heartbeat
+    // Set up interval for heartbeat - every 30 seconds to track active time
     const heartbeatInterval = setInterval(() => {
       const currentToken = localStorage.getItem("token")
       if (currentToken) {
         sendHeartbeat()
       }
-    }, 60000) // Every 60 seconds
+    }, 30000) // Every 30 seconds
 
     return () => clearInterval(heartbeatInterval)
   }, [])
