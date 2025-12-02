@@ -383,45 +383,49 @@ const Dashboard = () => {
     
     setError(null)
     const fileName = files.find(f => f._id === lockFileId)?.fileName || "File"
+    const currentLockFileId = lockFileId
+    const currentLockModalType = lockModalType
     
     try {
       let response
-      if (lockModalType === "lock") {
-        response = await lockFile(lockFileId, lockPassword)
+      if (currentLockModalType === "lock") {
+        response = await lockFile(currentLockFileId, lockPassword)
       } else {
-        response = await unlockFile(lockFileId, lockPassword)
+        response = await unlockFile(currentLockFileId, lockPassword)
       }
       
       if (response.error) {
         setError(response.error)
-      } else {
-        // Close modal first
-        setLockModalOpen(false)
-        setLockFileId(null)
-        setLockPassword("")
-        
-        // Update the file in state immediately for instant UI feedback
-        setFiles(prevFiles => prevFiles.map(f => 
-          f._id === lockFileId 
-            ? { ...f, isLocked: lockModalType === "lock" }
-            : f
-        ))
-        
-        // Show success notification
-        setScanNotification({
-          safe: true,
-          status: "success",
-          message: response.message,
-          fileName
-        })
-        setTimeout(() => setScanNotification(null), 5000)
-        
-        // Also refresh from server to ensure consistency
-        await fetchFiles()
+        return
       }
+      
+      // Close modal first
+      setLockModalOpen(false)
+      setLockFileId(null)
+      setLockPassword("")
+      
+      // Update the file in state immediately for instant UI feedback
+      setFiles(prevFiles => prevFiles.map(f => 
+        f._id === currentLockFileId 
+          ? { ...f, isLocked: currentLockModalType === "lock" }
+          : f
+      ))
+      
+      // Show success notification
+      setScanNotification({
+        safe: true,
+        status: "success",
+        message: response.message,
+        fileName
+      })
+      setTimeout(() => setScanNotification(null), 5000)
+      
+      // Also refresh from server to ensure consistency (don't await, fire and forget)
+      fetchFiles().catch(console.error)
+      
     } catch (err) {
-      setError(`Failed to ${lockModalType} file.`)
-    } finally {
+      console.error("Lock/Unlock Error:", err)
+      setError(`Failed to ${currentLockModalType} file. Please try again.`)
       setLockModalOpen(false)
       setLockFileId(null)
       setLockPassword("")
