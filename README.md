@@ -212,7 +212,9 @@ PORT=5000
 
 ## 🚀 Next Steps:
 
- > Implement real-time notifications & AI-powered threat detection!
+ - Fix integrety
+ - Fix Notifications
+ - check for security issues
  
 ---
  
