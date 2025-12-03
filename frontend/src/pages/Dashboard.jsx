@@ -770,12 +770,6 @@ const Dashboard = () => {
                   </button>
                   {activeDropdown === file._id && (
                     <div className={styles.dropdown}>
-                      <button onClick={() => handleDownloadFile(file._id, file.fileName)}>
-                        <FaDownload /> Download
-                      </button>
-                      <button onClick={() => handleShareFile(file._id)}>
-                        <FaShare /> Share
-                      </button>
                       <button onClick={() => handleVerifyIntegrity(file._id)}>
                         <FaShieldAlt /> Verify Integrity
                       </button>
@@ -784,9 +778,6 @@ const Dashboard = () => {
                       </button>
                       <button onClick={() => handleLockFile(file._id, file.isLocked)}>
                         <FaKey /> {file.isLocked ? "Unlock File" : "Lock File"}
-                      </button>
-                      <button onClick={() => handleDeleteFile(file._id)}>
-                        <FaTrash /> Delete
                       </button>
                     </div>
                   )}
