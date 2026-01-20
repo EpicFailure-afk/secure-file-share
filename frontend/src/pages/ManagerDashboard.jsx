@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -21,16 +21,8 @@ import {
   FaTabletAlt,
   FaChartLine,
   FaHistory,
-  FaCalendarAlt,
-  FaFilter,
   FaSync,
   FaUserTie,
-  FaChevronDown,
-  FaChevronUp,
-  FaSearch,
-  FaExclamationTriangle,
-  FaCheckCircle,
-  FaInfoCircle,
   FaBroom,
 } from "react-icons/fa"
 import styles from "./ManagerDashboard.module.css"
@@ -85,10 +77,12 @@ const ManagerDashboard = () => {
         }
         loadData()
       } catch (err) {
+        console.error("Access check error:", err)
         navigate("/login")
       }
     }
     checkAccess()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate])
 
   // Auto-refresh every 10 seconds
@@ -228,6 +222,7 @@ const ManagerDashboard = () => {
     else if (activeTab === "sessions") loadSessions()
     else if (activeTab === "worklogs") loadWorkLogs()
     else if (activeTab === "stats") loadStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, filters])
 
   const getActivityIcon = (type) => {
@@ -283,7 +278,7 @@ const ManagerDashboard = () => {
   const timeSince = (date) => {
     const seconds = Math.floor((new Date() - new Date(date)) / 1000)
     if (seconds < 60) return "now"
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+    if (seconds < 3600) return `${formatDuration(seconds)} ago`
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
     return `${Math.floor(seconds / 86400)}d ago`
   }
@@ -328,6 +323,13 @@ const ManagerDashboard = () => {
               title="Clean up stale sessions"
             >
               <FaBroom /> Cleanup
+            </button>
+            <button
+              className={styles.resetBtn}
+              onClick={handleResetSessions}
+              title="Reset all sessions (logs out all users)"
+            >
+              Reset All
             </button>
             <button
               className={`${styles.refreshBtn} ${autoRefresh ? styles.active : ""}`}
@@ -375,7 +377,7 @@ const ManagerDashboard = () => {
             </div>
             <div className={styles.statInfo}>
               <span className={styles.statValue}>{liveData.todayActivityCount}</span>
-              <span className={styles.statLabel}>Today's Activities</span>
+              <span className={styles.statLabel}>Today&apos;s Activities</span>
             </div>
           </div>
           <div className={styles.statCard}>

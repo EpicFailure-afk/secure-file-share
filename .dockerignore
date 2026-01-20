@@ -1,0 +1,51 @@
+# Dependencies
+node_modules
+*/node_modules
+**/node_modules
+
+# Build outputs
+dist
+build
+.next
+
+# Environment files
+.env
+.env.*
+*.env
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test files
+coverage
+.nyc_output
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files (don't need to copy these into the image)
+Dockerfile
+docker-compose.yml
+docker-compose*.yml
+
+# Documentation
+README.md
+*.md
+
+# Uploads (will be mounted as volume)
+backend/uploads/*
+!backend/uploads/.gitkeep

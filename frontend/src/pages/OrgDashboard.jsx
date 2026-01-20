@@ -8,7 +8,6 @@ import {
   FaUsers,
   FaUserPlus,
   FaUserCheck,
-  FaUserTimes,
   FaUserCog,
   FaCog,
   FaChartBar,
@@ -25,7 +24,6 @@ import {
   FaCheckCircle,
   FaHdd,
   FaShieldAlt,
-  FaHistory,
   FaSignOutAlt,
   FaCrown,
 } from "react-icons/fa"
@@ -60,8 +58,8 @@ const OrgDashboard = () => {
   const [error, setError] = useState(null)
   const [successMessage, setSuccessMessage] = useState(null)
   const [copied, setCopied] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
+  const [transferTarget, setTransferTarget] = useState("")
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const navigate = useNavigate()
 
@@ -72,6 +70,7 @@ const OrgDashboard = () => {
       return
     }
     loadInitialData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate])
 
   const loadInitialData = async () => {
@@ -105,6 +104,7 @@ const OrgDashboard = () => {
 
       await fetchStats()
     } catch (err) {
+      console.error("Load error:", err)
       setError("Failed to load organization data")
     } finally {
       setLoading(false)
@@ -135,6 +135,7 @@ const OrgDashboard = () => {
         setPagination(response.pagination || { page: 1, pages: 1 })
       }
     } catch (err) {
+      console.error("Fetch members error:", err)
       setError("Failed to fetch members")
     } finally {
       setLoading(false)
@@ -156,6 +157,7 @@ const OrgDashboard = () => {
     if (activeTab === "members") fetchMembers()
     else if (activeTab === "pending") fetchPendingMembers()
     else if (activeTab === "overview") fetchStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
 
   const showSuccess = (message) => {
@@ -175,6 +177,7 @@ const OrgDashboard = () => {
         setError(response.error)
       }
     } catch (err) {
+      console.error("Approve error:", err)
       setError("Action failed")
     } finally {
       setActionLoading(null)
@@ -192,6 +195,7 @@ const OrgDashboard = () => {
         setError(response.error)
       }
     } catch (err) {
+      console.error("Role change error:", err)
       setError("Failed to update role")
     } finally {
       setActionLoading(null)
@@ -212,6 +216,7 @@ const OrgDashboard = () => {
         setError(response.error)
       }
     } catch (err) {
+      console.error("Remove member error:", err)
       setError("Failed to remove member")
     } finally {
       setActionLoading(null)
@@ -233,6 +238,7 @@ const OrgDashboard = () => {
         setError(response.error)
       }
     } catch (err) {
+      console.error("Regenerate code error:", err)
       setError("Failed to regenerate invite code")
     } finally {
       setActionLoading(null)
@@ -256,6 +262,7 @@ const OrgDashboard = () => {
         setError(response.error)
       }
     } catch (err) {
+      console.error("Leave org error:", err)
       setError("Failed to leave organization")
     }
   }
@@ -269,7 +276,29 @@ const OrgDashboard = () => {
         setError(response.error)
       }
     } catch (err) {
+      console.error("Delete org error:", err)
       setError("Failed to delete organization")
+    }
+  }
+
+  const handleTransferOwnership = async () => {
+    if (!transferTarget) {
+      setError("Please select a member to transfer ownership to")
+      return
+    }
+    try {
+      const response = await transferOwnership(transferTarget)
+      if (!response.error) {
+        showSuccess("Ownership transferred successfully")
+        setShowTransferModal(false)
+        setTransferTarget("")
+        loadInitialData()
+      } else {
+        setError(response.error)
+      }
+    } catch (err) {
+      console.error("Transfer error:", err)
+      setError("Failed to transfer ownership")
     }
   }
 
@@ -752,6 +781,36 @@ const OrgDashboard = () => {
               </button>
               <button className={styles.confirmDeleteBtn} onClick={handleDeleteOrg}>
                 Delete Organization
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Ownership Modal */}
+      {showTransferModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowTransferModal(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3><FaCrown /> Transfer Ownership</h3>
+            <p>Select a member to transfer organization ownership to:</p>
+            <select 
+              value={transferTarget} 
+              onChange={(e) => setTransferTarget(e.target.value)}
+              className={styles.transferSelect}
+            >
+              <option value="">Select a member</option>
+              {members.filter(m => m._id !== userProfile?._id).map(member => (
+                <option key={member._id} value={member._id}>
+                  {member.username} ({member.email})
+                </option>
+              ))}
+            </select>
+            <div className={styles.modalActions}>
+              <button className={styles.cancelBtn} onClick={() => { setShowTransferModal(false); setTransferTarget(""); }}>
+                Cancel
+              </button>
+              <button className={styles.confirmBtn} onClick={handleTransferOwnership} disabled={!transferTarget}>
+                Transfer Ownership
               </button>
             </div>
           </div>

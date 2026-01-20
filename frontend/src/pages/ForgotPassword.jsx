@@ -151,7 +151,7 @@ const ForgotPassword = () => {
           ) : (
             <form className={styles.resetForm} onSubmit={handleVerifyReset}>
               <div className={styles.tokenInfo}>
-                <p>We've sent a 6-character verification code to your email.</p>
+                <p>We&apos;ve sent a 6-character verification code to your email.</p>
                 <p>Please check your inbox and enter the code below.</p>
               </div>
 

@@ -136,15 +136,17 @@ const Login = () => {
               </button>
 
               <p className={styles.registerLink}>
-                Don't have an account? <Link to="/register">Sign Up</Link>
+                Don&apos;t have an account? <Link to="/register">Sign Up</Link>
               </p>
             </form>
           ) : (
             <form className={styles.loginForm} onSubmit={handleVerifyToken}>
-              <div className={styles.tokenInfo}>
-                <p>We've sent a 6-character verification code to your email.</p>
-                <p>Please check your inbox and enter the code below.</p>
-              </div>
+              {tokenSent && (
+                <div className={styles.tokenInfo}>
+                  <p>We&apos;ve sent a 6-character verification code to your email.</p>
+                  <p>Please check your inbox and enter the code below.</p>
+                </div>
+              )}
 
               <div className={styles.inputGroup}>
                 <div className={styles.inputIcon}>

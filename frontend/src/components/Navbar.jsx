@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { FaSun, FaMoon, FaBars, FaTimes, FaSignOutAlt, FaUserShield, FaBuilding, FaChartLine } from "react-icons/fa"
+import { FaBars, FaTimes, FaSignOutAlt, FaUserShield, FaBuilding, FaChartLine } from "react-icons/fa"
 import styles from "./Navbar.module.css"
 import logo from "../assets/image.png"
 import { getUserProfile, logoutUser } from "../api"
 
 const Navbar = () => {
-  const [darkMode, setDarkMode] = useState(localStorage.getItem("darkMode") === "true")
+  const [darkMode] = useState(localStorage.getItem("darkMode") === "true")
   const [menuOpen, setMenuOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const [scrolled, setScrolled] = useState(false)
@@ -77,6 +77,7 @@ const Navbar = () => {
             setCanAccessOrgDashboard(false)
           }
         } catch (err) {
+          console.error("Profile fetch error:", err)
           setIsAdmin(false)
           setIsOrgMember(false)
           setCanAccessOrgDashboard(false)
@@ -108,10 +109,6 @@ const Navbar = () => {
   useEffect(() => {
     setMenuOpen(false)
   }, [location])
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode)
-  }
 
   const handleLogout = async () => {
     try {
