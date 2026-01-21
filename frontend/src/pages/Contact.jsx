@@ -74,7 +74,7 @@ const Contact = () => {
       >
         <h1>Contact Us</h1>
         <p>
-          Have questions or feedback? We'd love to hear from you. Fill out the form below or reach out to us directly
+          Have questions or feedback? We&apos;d love to hear from you. Fill out the form below or reach out to us directly
           using the contact information.
         </p>
       </motion.div>

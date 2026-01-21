@@ -136,6 +136,7 @@ const Register = () => {
         }, 2000)
       }
     } catch (err) {
+      console.error("Registration error:", err)
       setError("Network error. Please check your connection.")
     } finally {
       setLoading(false)

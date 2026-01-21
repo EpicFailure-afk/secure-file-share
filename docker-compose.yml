@@ -1,6 +1,6 @@
 services:
   backend:
-      container_name: backend
+      container_name: backendd
       build:
         context: .
         dockerfile: Dockerfile
@@ -29,7 +29,7 @@ services:
         retries: 3
 
   nginx:
-    container_name: nginx
+    container_name: nginxx
     build:
       context: .
       dockerfile: Dockerfile

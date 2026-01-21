@@ -142,7 +142,7 @@ const SharePage = () => {
         <FaInfoCircle className={styles.errorIcon} />
         <h2>File Not Available</h2>
         <p>{error}</p>
-        <p>The file you're trying to access may have expired or been removed.</p>
+        <p>The file you&apos;re trying to access may have expired or been removed.</p>
         <Link to="/" className={styles.homeLink}>
           Go to Homepage
         </Link>

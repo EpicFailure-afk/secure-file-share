@@ -81,7 +81,7 @@ const Home = () => {
           <motion.div className={styles.featureCard} whileHover={{ y: -10, boxShadow: "0 10px 20px rgba(0,0,0,0.2)" }}>
             <div className={styles.featureIcon}>⏱️</div>
             <h3>Expiring Links</h3>
-            <p>Set an expiration time for your shared files to ensure they're not accessible indefinitely.</p>
+            <p>Set an expiration time for your shared files to ensure they&apos;re not accessible indefinitely.</p>
           </motion.div>
 
           <motion.div className={styles.featureCard} whileHover={{ y: -10, boxShadow: "0 10px 20px rgba(0,0,0,0.2)" }}>

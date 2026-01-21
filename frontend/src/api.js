@@ -188,7 +188,7 @@ export const uploadFile = async (formData, progressCallback) => {
           } else {
             resolve({ error: response.error || `Upload failed with status ${xhr.status}` })
           }
-        } catch (e) {
+        } catch {
           resolve({ error: "Failed to parse server response" })
         }
       })
@@ -1369,7 +1369,7 @@ export const getMonitorActivity = async (page = 1, limit = 50, filters = {}) => 
 
     // Clean up filters to remove undefined values
     const cleanFilters = Object.fromEntries(
-      Object.entries(filters).filter(([_, v]) => v !== undefined && v !== null && v !== "")
+      Object.entries(filters).filter(([key, v]) => key && v !== undefined && v !== null && v !== "")
     )
 
     const params = new URLSearchParams({
@@ -1400,7 +1400,7 @@ export const getMonitorSessions = async (page = 1, limit = 50, filters = {}) => 
 
     // Clean up filters to remove undefined values
     const cleanFilters = Object.fromEntries(
-      Object.entries(filters).filter(([_, v]) => v !== undefined && v !== null && v !== "")
+      Object.entries(filters).filter(([key, v]) => key && v !== undefined && v !== null && v !== "")
     )
 
     const params = new URLSearchParams({

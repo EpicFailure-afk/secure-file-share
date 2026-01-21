@@ -29,12 +29,11 @@ import {
   FaKey,
   FaLock,
   FaUnlock,
-  FaHistory,
   FaEye,
   FaTimes,
 } from "react-icons/fa"
 import styles from "./Dashboard.module.css"
-import { getUserFiles, uploadFile, deleteFile, shareFile, downloadFile, getUserProfile, verifyUserFileIntegrity, lockFile, unlockFile, setFileExpiration, preScanFile, downloadFileWithScan, createOrganization, joinOrganization, getOrganizationDetails } from "../api"
+import { getUserFiles, uploadFile, deleteFile, shareFile, getUserProfile, verifyUserFileIntegrity, lockFile, unlockFile, setFileExpiration, downloadFileWithScan, createOrganization, joinOrganization, getOrganizationDetails } from "../api"
 
 const Dashboard = () => {
   const [files, setFiles] = useState([])
@@ -355,6 +354,7 @@ const Dashboard = () => {
       const result = await verifyUserFileIntegrity(fileId)
       setIntegrityData(result)
     } catch (err) {
+      console.error("Integrity check error:", err)
       setError("Failed to verify file integrity.")
       setIntegrityModalOpen(false)
     } finally {
@@ -467,6 +467,7 @@ const Dashboard = () => {
         await fetchFiles()
       }
     } catch (err) {
+      console.error("Set expiration error:", err)
       setError("Failed to set file expiration.")
     } finally {
       setExpirationModalOpen(false)
@@ -510,6 +511,7 @@ const Dashboard = () => {
         if (profileRes.user) setUser(profileRes.user)
       }
     } catch (err) {
+      console.error("Create org error:", err)
       setError("Failed to create organization")
     }
   }
@@ -547,6 +549,7 @@ const Dashboard = () => {
         }
       }
     } catch (err) {
+      console.error("Join org error:", err)
       setError("Failed to join organization")
     }
   }
@@ -792,10 +795,10 @@ const Dashboard = () => {
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
             <h3>Share File</h3>
-            <p>Share this link with others to give them access to "{selectedFile?.fileName}"</p>
+            <p>Share this link with others to give them access to &quot;{selectedFile?.fileName}&quot;</p>
             <div className={styles.shareInfo}>
-              <p>The recipient will need to request access, and you'll receive a verification code by email.</p>
-              <p>You'll need to provide them with this code to grant them access to the file.</p>
+              <p>The recipient will need to request access, and you&apos;ll receive a verification code by email.</p>
+              <p>You&apos;ll need to provide them with this code to grant them access to the file.</p>
             </div>
             <div className={styles.shareLink}>
               <input type="text" value={shareUrl} readOnly />

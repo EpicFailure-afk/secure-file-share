@@ -21,7 +21,6 @@ import "./App.css"
 
 const AnimatedRoutes = () => {
   const location = useLocation();
-  const isSharePage = location.pathname.startsWith("/share/");
 
   return (
     <AnimatePresence mode="wait">

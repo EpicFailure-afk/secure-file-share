@@ -68,6 +68,7 @@ const AdminDashboard = () => {
     }
 
     checkAdminAccess()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate])
 
   const checkAdminAccess = async () => {
@@ -79,6 +80,7 @@ const AdminDashboard = () => {
       }
       fetchDashboardData()
     } catch (err) {
+      console.error("Admin access check error:", err)
       navigate("/dashboard")
     }
   }
@@ -94,6 +96,7 @@ const AdminDashboard = () => {
         setRecentActivity(response.recentActivity || [])
       }
     } catch (err) {
+      console.error("Dashboard data error:", err)
       setError("Failed to fetch dashboard data")
     } finally {
       setLoading(false)
@@ -111,6 +114,7 @@ const AdminDashboard = () => {
         setPagination(response.pagination || { page: 1, pages: 1 })
       }
     } catch (err) {
+      console.error("Fetch users error:", err)
       setError("Failed to fetch users")
     } finally {
       setLoading(false)
@@ -128,6 +132,7 @@ const AdminDashboard = () => {
         setPagination(response.pagination || { page: 1, pages: 1 })
       }
     } catch (err) {
+      console.error("Fetch files error:", err)
       setError("Failed to fetch files")
     } finally {
       setLoading(false)
@@ -145,6 +150,7 @@ const AdminDashboard = () => {
         setPagination(response.pagination || { page: 1, pages: 1 })
       }
     } catch (err) {
+      console.error("Fetch audit logs error:", err)
       setError("Failed to fetch audit logs")
     } finally {
       setLoading(false)
@@ -156,6 +162,7 @@ const AdminDashboard = () => {
     else if (activeTab === "files") fetchFiles()
     else if (activeTab === "logs") fetchAuditLogs()
     else if (activeTab === "overview") fetchDashboardData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
 
   const handleSearch = () => {
@@ -198,6 +205,7 @@ const AdminDashboard = () => {
         setError(response.error)
       }
     } catch (err) {
+      console.error("User action failed:", err)
       setError("Action failed")
     } finally {
       setActionLoading(null)
@@ -237,6 +245,7 @@ const AdminDashboard = () => {
         setError(response.error)
       }
     } catch (err) {
+      console.error("File action failed:", err)
       setError("Action failed")
     } finally {
       setActionLoading(null)
@@ -265,6 +274,7 @@ const AdminDashboard = () => {
         setError(response.error)
       }
     } catch (err) {
+      console.error("System action failed:", err)
       setError("Action failed")
     } finally {
       setActionLoading(null)
