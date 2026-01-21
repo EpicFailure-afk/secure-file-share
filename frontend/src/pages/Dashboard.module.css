@@ -518,6 +518,23 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
+.modalError {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1rem;
+  background: rgba(244, 67, 54, 0.15);
+  border: 1px solid rgba(244, 67, 54, 0.4);
+  border-radius: 8px;
+  color: #ff6b6b;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.modalError svg {
+  flex-shrink: 0;
+}
+
 @media (max-width: 768px) {
   .header {
     flex-direction: column;

@@ -360,7 +360,7 @@ const OrgDashboard = () => {
           </div>
         </div>
         <div className={styles.headerActions}>
-          {!isOwner && (
+          {!isOwner && userProfile?.role !== "manager" && (
             <button className={styles.leaveBtn} onClick={handleLeaveOrg}>
               <FaSignOutAlt /> Leave Organization
             </button>
@@ -395,7 +395,7 @@ const OrgDashboard = () => {
           <button className={styles.copyBtn} onClick={copyInviteCode}>
             {copied ? <FaCheck /> : <FaCopy />}
           </button>
-          {["admin", "owner"].includes(userProfile?.role) && (
+          {["admin", "owner", "manager"].includes(userProfile?.role) && (
             <button 
               className={styles.regenerateBtn} 
               onClick={handleRegenerateCode}
@@ -586,9 +586,9 @@ const OrgDashboard = () => {
                       <td>{member.department || "-"}</td>
                       <td>{formatDate(member.createdAt)}</td>
                       <td>
-                        {member.role !== "owner" && (
+                        {member.role !== "owner" && member._id !== userProfile?._id && (
                           <div className={styles.actionBtns}>
-                            {["admin", "owner"].includes(userProfile?.role) && (
+                            {["manager", "owner"].includes(userProfile?.role) && (
                               <select
                                 value={member.role}
                                 onChange={(e) => handleRoleChange(member._id, e.target.value)}
@@ -600,7 +600,7 @@ const OrgDashboard = () => {
                                 {isOwner && <option value="admin">Admin</option>}
                               </select>
                             )}
-                            {["admin", "owner"].includes(userProfile?.role) && (
+                            {["manager", "owner"].includes(userProfile?.role) && (
                               <button
                                 className={styles.removeBtn}
                                 onClick={() => handleRemoveMember(member._id)}

@@ -204,6 +204,18 @@ router.post("/leave", auth, async (req, res) => {
       })
     }
 
+    // Managers cannot leave the organization
+    if (user.role === "manager") {
+      return res.status(400).json({
+        error: "Managers cannot leave the organization. Ask the owner to demote you first.",
+      })
+    }
+    if (organization.owner.toString() === userId) {
+      return res.status(400).json({
+        error: "Owners cannot leave. Transfer ownership or delete the organization.",
+      })
+    }
+
     // Update stats
     if (user.approvalStatus === "approved") {
       organization.stats.totalUsers = Math.max(0, organization.stats.totalUsers - 1)
@@ -349,27 +361,34 @@ router.put("/members/:memberId/role", auth, async (req, res) => {
   try {
     const { memberId } = req.params
     const { role } = req.body
-    const adminUser = await User.findById(req.user.userId)
+    const currentUser = await User.findById(req.user.userId)
 
-    if (!adminUser.organization) {
+    if (!currentUser.organization) {
       return res.status(400).json({ error: "You are not part of any organization" })
     }
 
-    // Only owner can promote to admin, admins can manage staff/manager
-    const organization = await Organization.findById(adminUser.organization)
-    const isOwner = organization.owner.toString() === adminUser._id.toString()
+    const organization = await Organization.findById(currentUser.organization)
+    const isOwner = organization.owner.toString() === currentUser._id.toString()
+    const isManager = currentUser.role === "manager"
 
-    if (!isOwner && role === "admin") {
-      return res.status(403).json({ error: "Only organization owner can assign admin role" })
+    // Only managers and owners can change roles (admins are for monitoring only)
+    if (!isOwner && !isManager && currentUser.role !== "superadmin") {
+      return res.status(403).json({ error: "Only managers and owners can change member roles" })
     }
 
-    if (!["admin", "owner", "superadmin"].includes(adminUser.role)) {
-      return res.status(403).json({ error: "Permission denied" })
+    // Only owner can promote to admin or manager
+    if (!isOwner && (role === "admin" || role === "manager")) {
+      return res.status(403).json({ error: "Only organization owner can assign admin or manager roles" })
+    }
+
+    // Prevent users from changing their own role
+    if (memberId === currentUser._id.toString()) {
+      return res.status(400).json({ error: "You cannot change your own role" })
     }
 
     const member = await User.findOne({
       _id: memberId,
-      organization: adminUser.organization,
+      organization: currentUser.organization,
     })
 
     if (!member) {
@@ -388,7 +407,7 @@ router.put("/members/:memberId/role", auth, async (req, res) => {
     // Log the action
     await AuditLog.create({
       action: "member_role_updated",
-      userId: adminUser._id,
+      userId: currentUser._id,
       details: { memberId, memberEmail: member.email, oldRole, newRole: role },
       ipAddress: req.ip,
     })
@@ -476,7 +495,7 @@ router.post("/invite-code/regenerate", auth, async (req, res) => {
       return res.status(400).json({ error: "You are not part of any organization" })
     }
 
-    if (!["admin", "owner", "superadmin"].includes(user.role)) {
+    if (!["admin", "owner", "manager", "superadmin"].includes(user.role)) {
       return res.status(403).json({ error: "Permission denied" })
     }
 

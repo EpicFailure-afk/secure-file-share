@@ -906,7 +906,11 @@ export const lockFile = async (fileId, password) => {
       },
       body: JSON.stringify({ password }),
     })
-    return await response.json()
+    const data = await response.json()
+    if (!response.ok) {
+      return { error: data.error || "Failed to lock file" }
+    }
+    return data
   } catch (error) {
     console.error("Lock File Error:", error)
     return { error: "Network error. Please try again." }
@@ -929,7 +933,11 @@ export const unlockFile = async (fileId, password) => {
       },
       body: JSON.stringify({ password }),
     })
-    return await response.json()
+    const data = await response.json()
+    if (!response.ok) {
+      return { error: data.error || "Failed to unlock file" }
+    }
+    return data
   } catch (error) {
     console.error("Unlock File Error:", error)
     return { error: "Network error. Please try again." }

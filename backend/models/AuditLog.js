@@ -25,6 +25,8 @@ const auditLogSchema = new mongoose.Schema({
       "file_access",
       "file_scan",
       "file_integrity_check",
+      "file_lock",
+      "file_unlock",
       "admin_action",
       "system_cleanup",
     ],

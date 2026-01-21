@@ -558,12 +558,12 @@ router.post("/:id/lock", authMiddleware, async (req, res) => {
     const bcrypt = require("bcryptjs")
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    await File.findByIdAndUpdate(file._id, {
+    const updatedFile = await File.findByIdAndUpdate(file._id, {
       isLocked: true,
       lockPassword: hashedPassword,
       lockedAt: new Date(),
       lockedBy: req.user.userId,
-    })
+    }, { new: true })
 
     // Log the action
     await new AuditLog({
@@ -576,7 +576,7 @@ router.post("/:id/lock", authMiddleware, async (req, res) => {
       status: "success",
     }).save()
 
-    res.json({ message: "File locked successfully" })
+    res.json({ message: "File locked successfully", file: updatedFile })
   } catch (err) {
     console.error("Error locking file:", err)
     res.status(500).json({ error: "Server error" })
@@ -613,12 +613,12 @@ router.post("/:id/unlock", authMiddleware, async (req, res) => {
       return res.status(401).json({ error: "Incorrect password" })
     }
 
-    await File.findByIdAndUpdate(file._id, {
+    const updatedFile = await File.findByIdAndUpdate(file._id, {
       isLocked: false,
       lockPassword: null,
       lockedAt: null,
       lockedBy: null,
-    })
+    }, { new: true })
 
     // Log the action
     await new AuditLog({
@@ -631,7 +631,7 @@ router.post("/:id/unlock", authMiddleware, async (req, res) => {
       status: "success",
     }).save()
 
-    res.json({ message: "File unlocked successfully" })
+    res.json({ message: "File unlocked successfully", file: updatedFile })
   } catch (err) {
     console.error("Error unlocking file:", err)
     res.status(500).json({ error: "Server error" })

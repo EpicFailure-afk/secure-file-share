@@ -63,6 +63,8 @@ const Dashboard = () => {
   const [lockModalType, setLockModalType] = useState("lock") // "lock" or "unlock"
   const [lockFileId, setLockFileId] = useState(null)
   const [lockPassword, setLockPassword] = useState("")
+  const [lockModalError, setLockModalError] = useState(null)
+  const [lockModalLoading, setLockModalLoading] = useState(false)
   
   // Integrity modal states
   const [integrityModalOpen, setIntegrityModalOpen] = useState(false)
@@ -366,22 +368,24 @@ const Dashboard = () => {
     setLockFileId(fileId)
     setLockModalType(isCurrentlyLocked ? "unlock" : "lock")
     setLockPassword("")
+    setLockModalError(null)
     setLockModalOpen(true)
     setActiveDropdown(null)
   }
 
   const confirmLockUnlock = async () => {
     if (!lockFileId || !lockPassword) {
-      setError("Password is required")
+      setLockModalError("Password is required")
       return
     }
     
     if (lockPassword.length < 4) {
-      setError("Password must be at least 4 characters")
+      setLockModalError("Password must be at least 4 characters")
       return
     }
     
-    setError(null)
+    setLockModalError(null)
+    setLockModalLoading(true)
     const fileName = files.find(f => f._id === lockFileId)?.fileName || "File"
     const currentLockFileId = lockFileId
     const currentLockModalType = lockModalType
@@ -395,7 +399,8 @@ const Dashboard = () => {
       }
       
       if (response.error) {
-        setError(response.error)
+        setLockModalError(response.error)
+        setLockModalLoading(false)
         return
       }
       
@@ -403,13 +408,20 @@ const Dashboard = () => {
       setLockModalOpen(false)
       setLockFileId(null)
       setLockPassword("")
+      setLockModalLoading(false)
       
-      // Update the file in state immediately for instant UI feedback
-      setFiles(prevFiles => prevFiles.map(f => 
-        f._id === currentLockFileId 
-          ? { ...f, isLocked: currentLockModalType === "lock" }
-          : f
-      ))
+      // Update the file in state with the returned file object or update isLocked manually
+      if (response.file) {
+        setFiles(prevFiles => prevFiles.map(f => 
+          f._id === currentLockFileId ? response.file : f
+        ))
+      } else {
+        setFiles(prevFiles => prevFiles.map(f => 
+          f._id === currentLockFileId 
+            ? { ...f, isLocked: currentLockModalType === "lock" }
+            : f
+        ))
+      }
       
       // Show success notification
       setScanNotification({
@@ -420,15 +432,10 @@ const Dashboard = () => {
       })
       setTimeout(() => setScanNotification(null), 5000)
       
-      // Also refresh from server to ensure consistency (don't await, fire and forget)
-      fetchFiles().catch(console.error)
-      
     } catch (err) {
       console.error("Lock/Unlock Error:", err)
-      setError(`Failed to ${currentLockModalType} file. Please try again.`)
-      setLockModalOpen(false)
-      setLockFileId(null)
-      setLockPassword("")
+      setLockModalError(`Failed to ${currentLockModalType} file. Please try again.`)
+      setLockModalLoading(false)
     }
   }
 
@@ -888,6 +895,11 @@ const Dashboard = () => {
                 ? "Set a password to protect this file. You'll need this password to download or unlock it."
                 : "Enter the password to unlock this file."}
             </p>
+            {lockModalError && (
+              <div className={styles.modalError}>
+                <FaExclamationTriangle /> {lockModalError}
+              </div>
+            )}
             <div className={styles.formGroup}>
               <input
                 type="password"
@@ -896,13 +908,14 @@ const Dashboard = () => {
                 placeholder={lockModalType === "lock" ? "Create a password (min 4 characters)" : "Enter password"}
                 className={styles.formInput}
                 autoFocus
+                disabled={lockModalLoading}
               />
             </div>
             <div className={styles.modalActions}>
-              <button className={styles.confirmBtn} onClick={confirmLockUnlock}>
-                {lockModalType === "lock" ? "Lock File" : "Unlock File"}
+              <button className={styles.confirmBtn} onClick={confirmLockUnlock} disabled={lockModalLoading}>
+                {lockModalLoading ? "Processing..." : (lockModalType === "lock" ? "Lock File" : "Unlock File")}
               </button>
-              <button className={styles.closeBtn} onClick={() => setLockModalOpen(false)}>
+              <button className={styles.closeBtn} onClick={() => setLockModalOpen(false)} disabled={lockModalLoading}>
                 Cancel
               </button>
             </div>
