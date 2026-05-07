@@ -40,7 +40,7 @@ COPY --chown=nodeapp:nodejs backend/models ./models
 # Install mongoose
 RUN npm install mongoose --save
 
-EXPOSE 3000
+EXPOSE 5000
 CMD ["node", "src/server.js"]
 
 
