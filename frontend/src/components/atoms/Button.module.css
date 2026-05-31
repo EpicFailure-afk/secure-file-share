@@ -1,0 +1,119 @@
+.btn {
+  --btn-bg: var(--bg-surface);
+  --btn-fg: var(--fg-primary);
+  --btn-border: var(--border-subtle);
+  --btn-shadow: var(--elev-0);
+  --btn-shadow-hover: var(--elev-2);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  position: relative;
+
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: var(--tracking-snug);
+  white-space: nowrap;
+
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  box-shadow: var(--btn-shadow);
+  cursor: pointer;
+  user-select: none;
+  isolation: isolate;
+
+  transition:
+    transform var(--dur-base) var(--ease-standard),
+    box-shadow var(--dur-base) var(--ease-standard),
+    background var(--dur-base) var(--ease-standard),
+    border-color var(--dur-base) var(--ease-standard),
+    filter var(--dur-base) var(--ease-standard);
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--btn-shadow-hover);
+  filter: brightness(1.05);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+  transition-duration: var(--dur-fast);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: var(--btn-shadow);
+}
+
+/* Sizes */
+.size_sm { padding: 0 var(--space-4); height: 32px; font-size: var(--text-sm); border-radius: var(--radius-sm); }
+.size_md { padding: 0 var(--space-5); height: 40px; font-size: var(--text-sm); border-radius: var(--radius-md); }
+.size_lg { padding: 0 var(--space-6); height: 48px; font-size: var(--text-base); border-radius: var(--radius-md); }
+
+.full { width: 100%; }
+
+/* Primary — brand gradient */
+.variant_primary {
+  --btn-bg: var(--brand-grad);
+  --btn-fg: #fff;
+  --btn-border: transparent;
+  --btn-shadow: var(--elev-1);
+  --btn-shadow-hover: var(--elev-brand);
+  background-image: var(--brand-grad);
+}
+
+/* Secondary — glass surface */
+.variant_secondary {
+  --btn-bg: var(--glass-bg);
+  --btn-border: var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+/* Ghost — transparent until hover */
+.variant_ghost {
+  --btn-bg: transparent;
+  --btn-border: transparent;
+  --btn-shadow: none;
+  --btn-shadow-hover: none;
+}
+.variant_ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--brand-500) 12%, transparent);
+}
+
+/* Outline — bordered, transparent fill */
+.variant_outline {
+  --btn-bg: transparent;
+  --btn-border: var(--border-strong);
+}
+.variant_outline:hover:not(:disabled) {
+  border-color: var(--brand-500);
+  color: var(--brand-500);
+}
+
+/* Danger — for destructive actions */
+.variant_danger {
+  --btn-bg: color-mix(in srgb, var(--danger) 18%, transparent);
+  --btn-fg: var(--danger);
+  --btn-border: color-mix(in srgb, var(--danger) 35%, transparent);
+}
+.variant_danger:hover:not(:disabled) {
+  --btn-bg: color-mix(in srgb, var(--danger) 28%, transparent);
+}
+
+/* Internal slot icons */
+.icon { display: inline-flex; align-items: center; font-size: 1.05em; }
+.label { display: inline-flex; align-items: center; }
+.spinner { margin-right: var(--space-1); }
+
+.loading .label { opacity: 0.85; }

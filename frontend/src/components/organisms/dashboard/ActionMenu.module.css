@@ -1,0 +1,40 @@
+.menu {
+  position: fixed;
+  /* Above the hover preview card (z-index 1000) and every row. */
+  z-index: 1100;
+  min-width: 180px;
+  padding: var(--space-2);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--elev-4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.menu button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--fg-secondary);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+}
+
+.menu button:hover {
+  background: color-mix(in srgb, var(--brand-500) 12%, transparent);
+  color: var(--fg-primary);
+}
+
+.menu button svg { color: var(--fg-muted); }
+.menu button:hover svg { color: var(--brand-500); }
+
+.menu button[data-variant="danger"]:hover { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.menu button[data-variant="danger"]:hover svg { color: var(--danger); }

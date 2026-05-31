@@ -4,9 +4,11 @@ const path = require("path")
 const fs = require("fs")
 const crypto = require("crypto")
 const File = require("../models/File")
+const Folder = require("../models/Folder")
 const User = require("../models/User")
 const AuditLog = require("../models/AuditLog")
 const authMiddleware = require("../middleware/auth")
+const { extractFileMetadata } = require("../utils/fileMetadata")
 const { encryptFile, decryptFileToStream } = require("../utils/encryption")
 const { sendShareVerificationEmail } = require("../utils/shareNotification")
 const { calculateFileHash, verifyFileIntegrity } = require("../utils/fileIntegrity")
@@ -96,6 +98,17 @@ router.post("/upload", authMiddleware, (req, res, next) => {
       return res.status(400).json({ error: "Storage limit exceeded" })
     }
 
+    // Resolve optional destination folder (must belong to the user)
+    let folderId = null
+    if (req.body.folderId) {
+      const folder = await Folder.findOne({ _id: req.body.folderId, userId: req.user.userId })
+      if (!folder) {
+        fs.unlinkSync(req.file.path)
+        return res.status(400).json({ error: "Destination folder not found" })
+      }
+      folderId = folder._id
+    }
+
     const originalFilePath = req.file.path
     
     // Scan the original file BEFORE encryption (if ClamAV is available)
@@ -124,6 +137,10 @@ router.post("/upload", authMiddleware, (req, res, next) => {
       initialScanResult = "Scan error - pending review"
     }
 
+    // Extract preview metadata (dimensions / thumbnail / page count) from the
+    // ORIGINAL file before encryption deletes it. Best-effort, never blocks upload.
+    const previewMeta = await extractFileMetadata(originalFilePath, req.file.mimetype)
+
     // Generate encrypted file path
     const encryptedFilePath = originalFilePath + ".enc"
 
@@ -147,6 +164,11 @@ router.post("/upload", authMiddleware, (req, res, next) => {
       fileType: req.file.mimetype,
       fileSize: req.file.size,
       filePath: encryptedFilePath,
+      folderId: folderId,
+      imageWidth: previewMeta.imageWidth || null,
+      imageHeight: previewMeta.imageHeight || null,
+      pageCount: previewMeta.pageCount || null,
+      thumbnail: previewMeta.thumbnail || null,
       encryptionIv: iv,
       encryptionAlgorithm: algorithm,
       fileHash: fileHash,
@@ -209,6 +231,11 @@ router.post("/upload", authMiddleware, (req, res, next) => {
         fileName: newFile.fileName,
         fileType: newFile.fileType,
         fileSize: newFile.fileSize,
+        folderId: newFile.folderId,
+        imageWidth: newFile.imageWidth,
+        imageHeight: newFile.imageHeight,
+        pageCount: newFile.pageCount,
+        thumbnail: newFile.thumbnail,
         uploadDate: newFile.uploadDate,
         expiresAt: newFile.expiresAt,
         scanStatus: newFile.scanStatus,
@@ -422,6 +449,33 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     })
   } catch (err) {
     console.error("Error deleting file:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+//! Move a file into a folder (folderId null = root)
+router.patch("/:id/move", authMiddleware, async (req, res) => {
+  try {
+    const file = await File.findOne({ _id: req.params.id, userId: req.user.userId })
+    if (!file) {
+      return res.status(404).json({ error: "File not found" })
+    }
+
+    let folderId = null
+    if (req.body.folderId) {
+      const folder = await Folder.findOne({ _id: req.body.folderId, userId: req.user.userId })
+      if (!folder) {
+        return res.status(400).json({ error: "Destination folder not found" })
+      }
+      folderId = folder._id
+    }
+
+    file.folderId = folderId
+    await file.save()
+
+    res.json({ message: "File moved", folderId })
+  } catch (err) {
+    console.error("Error moving file:", err)
     res.status(500).json({ error: "Server error" })
   }
 })

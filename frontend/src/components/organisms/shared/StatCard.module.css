@@ -1,0 +1,48 @@
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 100%;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.tone_brand   { background: color-mix(in srgb, var(--brand-500) 16%, transparent); color: var(--brand-500); }
+.tone_info    { background: color-mix(in srgb, var(--info)      16%, transparent); color: var(--info); }
+.tone_success { background: color-mix(in srgb, var(--success)   16%, transparent); color: var(--success); }
+.tone_warning { background: color-mix(in srgb, var(--warning)   16%, transparent); color: var(--warning); }
+.tone_danger  { background: color-mix(in srgb, var(--danger)    16%, transparent); color: var(--danger); }
+.tone_violet  { background: color-mix(in srgb, #8B5CF6          16%, transparent); color: #8B5CF6; }
+
+.body { min-width: 0; }
+
+.label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--fg-muted);
+  margin-bottom: 2px;
+}
+
+.value {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--fg-primary);
+}
+
+.detail {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  margin-top: var(--space-2);
+}

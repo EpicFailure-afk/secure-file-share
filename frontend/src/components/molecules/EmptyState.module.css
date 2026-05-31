@@ -1,0 +1,49 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  padding: var(--space-9) var(--space-5);
+  color: var(--fg-secondary);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--brand-500) 14%, transparent);
+  color: var(--brand-500);
+  font-size: 28px;
+  margin-bottom: var(--space-2);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--fg-primary);
+  letter-spacing: var(--tracking-snug);
+}
+
+.description {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  max-width: 420px;
+  line-height: var(--lh-relaxed);
+}
+
+.action { margin-top: var(--space-4); }
+
+.error .icon {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  color: var(--danger);
+}
+
+.success .icon {
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+}

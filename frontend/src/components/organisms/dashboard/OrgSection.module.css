@@ -1,0 +1,59 @@
+.orgCard { width: 100%; }
+
+.cardInner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.orgIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--brand-500) 14%, transparent);
+  color: var(--brand-500);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.brand {
+  background: var(--brand-grad);
+  color: #fff;
+  box-shadow: var(--elev-brand);
+}
+
+.orgMeta { flex: 1; min-width: 200px; }
+
+.orgName {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--fg-primary);
+  margin-bottom: var(--space-1);
+  letter-spacing: var(--tracking-snug);
+}
+
+.orgRole, .orgSub {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.orgSub { max-width: 540px; line-height: var(--lh-relaxed); }
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+  .actions { width: 100%; }
+  .actions > * { flex: 1; }
+}

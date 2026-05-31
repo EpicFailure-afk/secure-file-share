@@ -22,6 +22,29 @@ const fileSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  // Folder this file lives in. null = root level.
+  folderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Folder",
+    default: null,
+  },
+  // Preview metadata, computed at upload time (best-effort, may be null)
+  imageWidth: {
+    type: Number,
+    default: null,
+  },
+  imageHeight: {
+    type: Number,
+    default: null,
+  },
+  pageCount: {
+    type: Number,
+    default: null, // PDF page count
+  },
+  thumbnail: {
+    type: String,
+    default: null, // small base64 data-URL preview for images
+  },
   uploadDate: {
     type: Date,
     default: Date.now,

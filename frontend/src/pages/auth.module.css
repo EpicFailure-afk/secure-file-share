@@ -1,0 +1,228 @@
+/* Shared layout for Login / Register / ForgotPassword. */
+
+.page {
+  min-height: calc(100vh - var(--nav-height));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-9) var(--space-5);
+  position: relative;
+  z-index: 2;
+}
+
+.card {
+  width: 100%;
+  max-width: 460px;
+  position: relative;
+}
+
+.cardWide {
+  max-width: 560px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  background: var(--brand-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  margin-bottom: var(--space-2);
+}
+
+.subtitle {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  line-height: var(--lh-relaxed);
+  max-width: 380px;
+  margin-inline: auto;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.errorBox,
+.successBox,
+.infoBox {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid;
+  font-size: var(--text-sm);
+  line-height: var(--lh-snug);
+}
+
+.errorBox {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 32%, transparent);
+  color: var(--danger);
+}
+
+.successBox {
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  border-color: color-mix(in srgb, var(--success) 32%, transparent);
+  color: var(--success);
+}
+
+.infoBox {
+  background: color-mix(in srgb, var(--info) 12%, transparent);
+  border-color: color-mix(in srgb, var(--info) 28%, transparent);
+  color: var(--fg-secondary);
+}
+
+.infoBox svg { color: var(--info); margin-top: 2px; flex-shrink: 0; }
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--text-sm);
+}
+
+.row a, .footLink a {
+  color: var(--brand-500);
+  font-weight: 500;
+  text-decoration: none;
+  transition: color var(--dur-base) var(--ease-standard);
+}
+
+.row a:hover, .footLink a:hover { color: var(--brand-700); }
+
+.footLink {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  margin-top: var(--space-2);
+}
+
+.stepBadge {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-4);
+}
+
+/* Org create/join action pills (Register) */
+.orgActions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+
+.orgActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--fg-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--dur-base) var(--ease-standard),
+    border-color var(--dur-base) var(--ease-standard),
+    color var(--dur-base) var(--ease-standard),
+    transform var(--dur-base) var(--ease-standard);
+}
+
+.orgActionBtn:hover {
+  border-color: color-mix(in srgb, var(--brand-500) 40%, transparent);
+  color: var(--fg-primary);
+  transform: translateY(-1px);
+}
+
+.orgActionBtn.active {
+  background: color-mix(in srgb, var(--brand-500) 16%, transparent);
+  border-color: color-mix(in srgb, var(--brand-500) 40%, transparent);
+  color: var(--fg-primary);
+}
+
+.orgActionBtn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.orgPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  overflow: hidden;
+}
+
+.roleGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.roleCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition:
+    background var(--dur-base) var(--ease-standard),
+    border-color var(--dur-base) var(--ease-standard),
+    transform var(--dur-base) var(--ease-standard);
+}
+
+.roleCard:hover {
+  border-color: color-mix(in srgb, var(--brand-500) 40%, transparent);
+  transform: translateY(-1px);
+}
+
+.roleCard input { position: absolute; opacity: 0; pointer-events: none; }
+
+.roleCardActive {
+  background: color-mix(in srgb, var(--brand-500) 12%, transparent);
+  border-color: color-mix(in srgb, var(--brand-500) 50%, transparent);
+}
+
+.roleHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+  color: var(--fg-primary);
+  font-size: var(--text-sm);
+}
+
+.roleHeader svg { color: var(--brand-500); }
+
+.roleDesc {
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-snug);
+}
+
+.fieldLabel {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--fg-secondary);
+  margin-bottom: var(--space-2);
+  display: block;
+}
+
+@media (max-width: 480px) {
+  .orgActions { grid-template-columns: 1fr; }
+}

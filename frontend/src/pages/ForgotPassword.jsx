@@ -1,228 +1,200 @@
-"use client"
-
-import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { motion } from "framer-motion"
-import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaKey } from "react-icons/fa"
-import styles from "./ForgotPassword.module.css"
-import { requestPasswordReset, verifyPasswordReset } from "../api"
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaKey, FaArrowLeft } from "react-icons/fa";
+import { Button, Card, CardBody, IconButton, Input, Badge } from "../components/atoms";
+import { FormField, useToast } from "../components/molecules";
+import { requestPasswordReset, verifyPasswordReset } from "../api";
+import styles from "./auth.module.css";
 
 const ForgotPassword = () => {
-  const navigate = useNavigate()
-  const [email, setEmail] = useState("")
-  const [token, setToken] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [step, setStep] = useState(1) // Step 1: Email, Step 2: Token & New Password
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [email, setEmail] = useState("");
+  const [token, setToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep] = useState(1);
 
   const handleRequestReset = async (e) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-
+    e.preventDefault();
+    setError(""); setSuccess(""); setLoading(true);
     try {
-      const response = await requestPasswordReset({ email })
-
-      if (!response || response.error) {
-        setError(response?.error || "Failed to send reset token. Please try again.")
-        return
+      const res = await requestPasswordReset({ email });
+      if (!res || res.error) {
+        setError(res?.error || "Failed to send reset token. Please try again.");
+        return;
       }
-
-      if (response.success) {
-        setStep(2)
-        setSuccess("Verification code sent to your email.")
+      if (res.success) {
+        setStep(2);
+        setSuccess("Verification code sent to your email.");
+        toast.info({ title: "Code sent", description: `Check ${email} for the 6-character code.` });
       } else {
-        setError("Failed to send verification token. Please try again.")
+        setError("Failed to send verification token. Please try again.");
       }
     } catch (err) {
-      setError("Network error. Please check your connection.")
-      console.error("Reset Request Error:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
+      console.error("Reset Request Error:", err);
+      setError("Network error. Please check your connection.");
+    } finally { setLoading(false); }
+  };
 
   const handleVerifyReset = async (e) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
-
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match")
-      setLoading(false)
-      return
-    }
-
-    if (newPassword.length < 8) {
-      setError("Password must be at least 8 characters long")
-      setLoading(false)
-      return
-    }
-
+    e.preventDefault();
+    setError(""); setLoading(true);
+    if (newPassword !== confirmPassword) { setError("Passwords do not match"); setLoading(false); return; }
+    if (newPassword.length < 8) { setError("Password must be at least 8 characters long"); setLoading(false); return; }
     try {
-      const response = await verifyPasswordReset({
-        email,
-        token,
-        newPassword,
-      })
-
-      if (!response || response.error) {
-        setError(response?.error || "Failed to reset password. Please try again.")
-        return
-      }
-
-      if (response.success) {
-        setSuccess("Password reset successful! Redirecting to login page...")
-        // Clear form
-        setEmail("")
-        setToken("")
-        setNewPassword("")
-        setConfirmPassword("")
-
-        // Redirect to login page after 2 seconds
-        setTimeout(() => {
-          navigate("/login")
-        }, 2000)
+      const res = await verifyPasswordReset({ email, token, newPassword });
+      if (!res || res.error) { setError(res?.error || "Failed to reset password. Please try again."); return; }
+      if (res.success) {
+        setSuccess("Password reset successful! Redirecting to login…");
+        toast.success({ title: "Password updated", description: "Sign in with your new password." });
+        setEmail(""); setToken(""); setNewPassword(""); setConfirmPassword("");
+        setTimeout(() => navigate("/login"), 1800);
       } else {
-        setError("Failed to reset password. Please try again.")
+        setError("Failed to reset password. Please try again.");
       }
     } catch (err) {
-      setError("Network error. Please check your connection.")
-      console.error("Reset Verification Error:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
+      console.error("Reset Verification Error:", err);
+      setError("Network error. Please check your connection.");
+    } finally { setLoading(false); }
+  };
 
   return (
-    <div className={styles.pageWrapper}>
+    <div className={styles.page}>
       <motion.div
-        className={styles.container}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.5 }}
+        className={styles.card}
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.2, 0, 0, 1] }}
       >
-        <motion.div
-          className={styles.formCard}
-          initial={{ y: 50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-        >
-          <div className={styles.formHeader}>
-            <h2>Reset Password</h2>
-            <p>
-              {step === 1
-                ? "Enter your email to receive a verification code"
-                : "Enter the verification code and your new password"}
-            </p>
-          </div>
+        <Card variant="glass" elevation={4} padding="lg">
+          <CardBody style={{ padding: 0 }}>
+            <div className={styles.stepBadge}>
+              <Badge variant="brand" size="sm" dot>Step {step} of 2</Badge>
+            </div>
 
-          {step === 1 ? (
-            <form className={styles.resetForm} onSubmit={handleRequestReset}>
-              <div className={styles.inputGroup}>
-                <div className={styles.inputIcon}>
-                  <FaEnvelope />
-                </div>
-                <input
-                  type="email"
-                  placeholder="Enter your registered email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-
-              {error && <p className={styles.error}>{error}</p>}
-              {success && <p className={styles.success}>{success}</p>}
-
-              <button type="submit" className={styles.btn} disabled={loading}>
-                {loading ? "Sending..." : "Send Verification Code"}
-              </button>
-
-              <p className={styles.loginLink}>
-                Remember your password? <Link to="/login">Back to Login</Link>
+            <header className={styles.header}>
+              <h1 className={styles.title}>Reset password</h1>
+              <p className={styles.subtitle}>
+                {step === 1
+                  ? "Enter your email and we'll send a verification code."
+                  : "Enter the code and choose a new password."}
               </p>
-            </form>
-          ) : (
-            <form className={styles.resetForm} onSubmit={handleVerifyReset}>
-              <div className={styles.tokenInfo}>
-                <p>We&apos;ve sent a 6-character verification code to your email.</p>
-                <p>Please check your inbox and enter the code below.</p>
-              </div>
+            </header>
 
-              <div className={styles.inputGroup}>
-                <div className={styles.inputIcon}>
+            {step === 1 ? (
+              <form className={styles.form} onSubmit={handleRequestReset}>
+                <FormField label="Registered email" required>
+                  <Input
+                    type="email"
+                    placeholder="you@company.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    leftIcon={<FaEnvelope />}
+                    autoComplete="email"
+                    required
+                  />
+                </FormField>
+
+                {error && <p className={styles.errorBox}>{error}</p>}
+                {success && <p className={styles.successBox}>{success}</p>}
+
+                <Button type="submit" variant="primary" size="lg" full loading={loading}>
+                  Send verification code
+                </Button>
+
+                <p className={styles.footLink}>
+                  Remember it now? <Link to="/login">Back to login</Link>
+                </p>
+              </form>
+            ) : (
+              <form className={styles.form} onSubmit={handleVerifyReset}>
+                <p className={styles.infoBox}>
                   <FaKey />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Enter 6-character code"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  maxLength={6}
-                  required
-                />
-              </div>
+                  <span>We sent a 6-character code to <strong>{email}</strong>.</span>
+                </p>
 
-              <div className={styles.inputGroup}>
-                <div className={styles.inputIcon}>
-                  <FaLock />
-                </div>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="New Password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                />
-                <button type="button" className={styles.passwordToggle} onClick={() => setShowPassword(!showPassword)}>
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
-                </button>
-              </div>
+                <FormField label="Verification code" required>
+                  <Input
+                    type="text"
+                    placeholder="ABC123"
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    leftIcon={<FaKey />}
+                    maxLength={6}
+                    required
+                    style={{
+                      letterSpacing: "0.5em",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "var(--text-lg)",
+                      textAlign: "center",
+                    }}
+                  />
+                </FormField>
 
-              <div className={styles.inputGroup}>
-                <div className={styles.inputIcon}>
-                  <FaLock />
-                </div>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Confirm New Password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                />
-              </div>
+                <FormField label="New password" required hint="At least 8 characters.">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    leftIcon={<FaLock />}
+                    autoComplete="new-password"
+                    required
+                    rightSlot={
+                      <IconButton
+                        size="sm"
+                        variant="ghost"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{ pointerEvents: "auto" }}
+                      >
+                        {showPassword ? <FaEyeSlash /> : <FaEye />}
+                      </IconButton>
+                    }
+                  />
+                </FormField>
 
-              {error && <p className={styles.error}>{error}</p>}
-              {success && <p className={styles.success}>{success}</p>}
+                <FormField label="Confirm new password" required>
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    leftIcon={<FaLock />}
+                    autoComplete="new-password"
+                    required
+                  />
+                </FormField>
 
-              <button type="submit" className={styles.btn} disabled={loading}>
-                {loading ? "Resetting..." : "Reset Password"}
-              </button>
+                {error && <p className={styles.errorBox}>{error}</p>}
+                {success && <p className={styles.successBox}>{success}</p>}
 
-              <button
-                type="button"
-                className={styles.backBtn}
-                onClick={() => {
-                  setStep(1)
-                  setError(null)
-                  setSuccess(null)
-                }}
-              >
-                Back
-              </button>
-            </form>
-          )}
-        </motion.div>
+                <Button type="submit" variant="primary" size="lg" full loading={loading}>
+                  Reset password
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  full
+                  leftIcon={<FaArrowLeft />}
+                  onClick={() => { setStep(1); setError(""); setSuccess(""); }}
+                >
+                  Back
+                </Button>
+              </form>
+            )}
+          </CardBody>
+        </Card>
       </motion.div>
     </div>
-  )
-}
+  );
+};
 
-export default ForgotPassword
-
+export default ForgotPassword;

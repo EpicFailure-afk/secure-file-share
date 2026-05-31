@@ -1,0 +1,9 @@
+.toolbar {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.toolbar > :global(.grow) { flex: 1; min-width: 200px; }

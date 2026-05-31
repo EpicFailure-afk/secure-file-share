@@ -1,326 +1,304 @@
-"use client"
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+  FaLock, FaDownload, FaKey, FaCheckCircle, FaInfoCircle,
+  FaShieldAlt, FaClock, FaUserShield, FaArrowRight,
+} from "react-icons/fa";
+import { Button, Card, CardBody, Badge, Spinner } from "../components/atoms";
+import { FormField, EmptyState } from "../components/molecules";
+import Input from "../components/atoms/Input";
+import MeshBackdrop from "../components/MeshBackdrop";
+import { verifyShareAccess, getSharedFileInfo, requestShareAccess } from "../api";
+import logo from "../assets/image.png";
+import styles from "./SharePage.module.css";
 
-import { useState, useEffect } from "react"
-import { useParams, Link } from "react-router-dom"
-import { motion } from "framer-motion"
-import { FaLock, FaDownload, FaKey, FaCheckCircle, FaInfoCircle } from "react-icons/fa"
-import styles from "./SharePage.module.css"
-import { verifyShareAccess, getSharedFileInfo, requestShareAccess } from "../api"
-import logo from "../assets/image.png"
+const formatFileSize = (bytes) => {
+  if (!bytes) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+};
+
+const formatFileType = (mimeType) => {
+  if (!mimeType) return "File";
+  const types = {
+    "image/":                                                                       "Image",
+    "application/pdf":                                                              "PDF Document",
+    "application/msword":                                                           "Word Document",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document":      "Word Document",
+    "application/vnd.ms-excel":                                                     "Excel Spreadsheet",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":            "Excel Spreadsheet",
+    "text/":                                                                        "Text",
+    "video/":                                                                       "Video",
+    "audio/":                                                                       "Audio",
+    "application/zip":                                                              "ZIP Archive",
+    "application/x-rar-compressed":                                                 "RAR Archive",
+  };
+  for (const [prefix, label] of Object.entries(types)) {
+    if (mimeType.startsWith(prefix)) return label;
+  }
+  return mimeType.split("/")[1]?.toUpperCase() || "File";
+};
+
+const TRUST = [
+  { icon: <FaShieldAlt />,  title: "AES-256 encryption",    body: "End-to-end encrypted in transit and at rest." },
+  { icon: <FaUserShield />, title: "Owner verification",    body: "Two-step access ensures only you receive it." },
+  { icon: <FaClock />,      title: "Auto-expiring",         body: "Shared files self-destruct on schedule." },
+];
 
 const SharePage = () => {
-  const { token } = useParams()
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [fileInfo, setFileInfo] = useState(null)
-  const [verificationCode, setVerificationCode] = useState("")
-  const [verificationSent, setVerificationSent] = useState(false)
-  const [verificationSuccess, setVerificationSuccess] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  const { token } = useParams();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [fileInfo, setFileInfo] = useState(null);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchFileInfo = async () => {
+    if (!token) return;
+    (async () => {
       try {
-        const response = await getSharedFileInfo(token)
-        if (response.error) {
-          setError(response.error)
-        } else {
-          setFileInfo(response.fileInfo)
-        }
+        const res = await getSharedFileInfo(token);
+        if (res.error) setError(res.error);
+        else setFileInfo(res.fileInfo);
       } catch (err) {
-        setError("Failed to fetch file information")
-        console.error("Fetch Error:", err)
+        console.error("Fetch Error:", err);
+        setError("Failed to fetch file information");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-
-    if (token) {
-      fetchFileInfo()
-    }
-  }, [token])
+    })();
+  }, [token]);
 
   const handleRequestAccess = async () => {
-    setSubmitting(true)
-    setError(null)
-
+    setSubmitting(true); setError("");
     try {
-      const response = await requestShareAccess(token)
-      if (response.error) {
-        setError(response.error)
-      } else {
-        setVerificationSent(true)
-      }
+      const res = await requestShareAccess(token);
+      if (res.error) setError(res.error);
+      else setVerificationSent(true);
     } catch (err) {
-      setError("Failed to request access. Please try again.")
-      console.error("Request Access Error:", err)
-    } finally {
-      setSubmitting(false)
-    }
-  }
+      console.error("Request Access Error:", err);
+      setError("Failed to request access. Please try again.");
+    } finally { setSubmitting(false); }
+  };
 
   const handleVerifyAccess = async (e) => {
-    e.preventDefault()
-    setSubmitting(true)
-    setError(null)
-
+    e.preventDefault();
+    setSubmitting(true); setError("");
     try {
-      const response = await verifyShareAccess(token, verificationCode)
-      if (response.error) {
-        setError(response.error)
-      } else {
-        setVerificationSuccess(true)
-      }
+      const res = await verifyShareAccess(token, verificationCode);
+      if (res.error) setError(res.error);
+      else setVerificationSuccess(true);
     } catch (err) {
-      setError("Failed to verify access code. Please try again.")
-      console.error("Verification Error:", err)
-    } finally {
-      setSubmitting(false)
-    }
-  }
+      console.error("Verification Error:", err);
+      setError("Failed to verify access code. Please try again.");
+    } finally { setSubmitting(false); }
+  };
 
   const handleDownload = async () => {
     try {
-      // Show loading state
-      setSubmitting(true)
+      setSubmitting(true);
+      const response = await fetch(`http://localhost:5000/api/files/share/${token}/download?code=${verificationCode}`);
+      if (!response.ok) throw new Error("Failed to download file");
 
-      // Make a fetch request to the backend API
-      const response = await fetch(`http://localhost:5000/api/files/share/${token}/download?code=${verificationCode}`, {
-        method: "GET",
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to download file")
+      let filename = fileInfo.fileName;
+      const cd = response.headers.get("Content-Disposition");
+      if (cd) {
+        const m = cd.match(/filename="(.+)"/);
+        if (m && m[1]) filename = m[1];
       }
-
-      // Get the filename from the Content-Disposition header if available
-      let filename = fileInfo.fileName
-      const contentDisposition = response.headers.get("Content-Disposition")
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="(.+)"/)
-        if (filenameMatch && filenameMatch[1]) {
-          filename = filenameMatch[1]
-        }
-      }
-
-      // Convert the response to a blob
-      const blob = await response.blob()
-
-      // Create a download link and trigger it
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.style.display = "none"
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-
-      // Clean up
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
-      setSubmitting(false)
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none"; a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      window.URL.revokeObjectURL(url); document.body.removeChild(a);
     } catch (err) {
-      setError("Failed to download file. Please try again.")
-      console.error("Download Error:", err)
-      setSubmitting(false)
-    }
-  }
+      console.error("Download Error:", err);
+      setError("Failed to download file. Please try again.");
+    } finally { setSubmitting(false); }
+  };
 
   if (loading) {
     return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.spinner}></div>
-        <p>Loading file information...</p>
-      </div>
-    )
+      <>
+        <MeshBackdrop variant="ambient" />
+        <div className={styles.loadingWrap}>
+          <Spinner size="lg" />
+          <p className={styles.loadingText}>Loading file information…</p>
+        </div>
+      </>
+    );
   }
 
   if (error && !fileInfo) {
     return (
-      <div className={styles.errorContainer}>
-        <FaInfoCircle className={styles.errorIcon} />
-        <h2>File Not Available</h2>
-        <p>{error}</p>
-        <p>The file you&apos;re trying to access may have expired or been removed.</p>
-        <Link to="/" className={styles.homeLink}>
-          Go to Homepage
-        </Link>
-      </div>
-    )
+      <>
+        <MeshBackdrop variant="ambient" />
+        <div className={styles.errorWrap}>
+          <Card variant="glass" elevation={4} padding="lg" style={{ maxWidth: 480, margin: "0 auto" }}>
+            <CardBody style={{ padding: 0 }}>
+              <EmptyState
+                variant="error"
+                icon={<FaInfoCircle />}
+                title="File not available"
+                description={`${error}. The link may have expired or been removed.`}
+                action={<Link to="/" style={{ textDecoration: "none" }}><Button variant="primary">Go to homepage</Button></Link>}
+              />
+            </CardBody>
+          </Card>
+        </div>
+      </>
+    );
   }
 
   return (
-    <div className={styles.sharePage}>
-      <div className={styles.shareContainer}>
-        <div className={styles.logoSection}>
-          <img src={logo || "/placeholder.svg"} alt="SecureShare Logo" className={styles.logo} />
-          <h1 className={styles.logoText}>SecureShare</h1>
-        </div>
+    <>
+      <MeshBackdrop variant="ambient" />
+      <div className={styles.page}>
+        <header className={styles.brand}>
+          <Link to="/" className={styles.brandLink}>
+            <img src={logo} alt="SecureShare" className={styles.brandLogo} />
+            <span className={styles.brandText}>SecureShare</span>
+          </Link>
+        </header>
 
-        <div className={styles.fileInfoCard}>
-          <div className={styles.lockIconContainer}>
-            <FaLock className={styles.lockIcon} />
-          </div>
-
-          <h2>Secure File Sharing</h2>
-
-          {fileInfo && (
-            <div className={styles.fileDetails}>
-              <h3>{fileInfo.fileName}</h3>
-              <p>
-                Size: {formatFileSize(fileInfo.fileSize)} • Type: {formatFileType(fileInfo.fileType)}
-              </p>
-              <p>Shared by: {fileInfo.ownerName}</p>
-            </div>
-          )}
-
-          {!verificationSent && !verificationSuccess && (
-            <div className={styles.accessRequest}>
-              <p>This file is protected. Request access from the owner to view and download it.</p>
-              <button className={styles.requestButton} onClick={handleRequestAccess} disabled={submitting}>
-                {submitting ? "Sending Request..." : "Request Access"}
-              </button>
-            </div>
-          )}
-
-          {verificationSent && !verificationSuccess && (
-            <motion.div
-              className={styles.verificationForm}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className={styles.notificationBox}>
-                <FaInfoCircle className={styles.infoIcon} />
-                <p>A verification code has been sent to the file owner. Please contact them to get the code.</p>
+        <motion.div
+          className={styles.cardWrap}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card variant="glass" elevation={4} padding="lg">
+            <CardBody style={{ padding: 0 }}>
+              <div className={styles.lockBadge}>
+                <FaLock />
               </div>
+              <h1 className={styles.title}>Secure file share</h1>
 
-              <form onSubmit={handleVerifyAccess}>
-                <div className={styles.inputGroup}>
-                  <FaKey className={styles.inputIcon} />
-                  <input
-                    type="text"
-                    placeholder="Enter verification code"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value)}
-                    required
-                  />
+              {fileInfo && (
+                <div className={styles.fileMeta}>
+                  <p className={styles.fileName}>{fileInfo.fileName}</p>
+                  <p className={styles.fileSub}>
+                    {formatFileSize(fileInfo.fileSize)} · {formatFileType(fileInfo.fileType)}
+                  </p>
+                  <p className={styles.fileOwner}>Shared by <strong>{fileInfo.ownerName}</strong></p>
                 </div>
+              )}
 
-                {error && <p className={styles.error}>{error}</p>}
+              {!verificationSent && !verificationSuccess && (
+                <div className={styles.action}>
+                  <p className={styles.actionCopy}>
+                    This file is protected. Request access and the owner will receive a notification.
+                  </p>
+                  <Button onClick={handleRequestAccess} loading={submitting} variant="primary" size="lg" full rightIcon={<FaArrowRight />}>
+                    Request access
+                  </Button>
+                </div>
+              )}
 
-                <button type="submit" className={styles.verifyButton} disabled={submitting}>
-                  {submitting ? "Verifying..." : "Verify & Access File"}
-                </button>
-              </form>
-            </motion.div>
-          )}
+              {verificationSent && !verificationSuccess && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4 }}
+                  className={styles.action}
+                >
+                  <p className={styles.infoBox}>
+                    <FaInfoCircle />
+                    <span>A code was sent to the file owner. Ask them to forward it to you.</span>
+                  </p>
 
-          {verificationSuccess && (
-            <motion.div
-              className={styles.successContainer}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className={styles.successIcon}>
-                <FaCheckCircle />
+                  <form onSubmit={handleVerifyAccess} className={styles.form}>
+                    <FormField label="Verification code" required>
+                      <Input
+                        placeholder="ABC123"
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value)}
+                        leftIcon={<FaKey />}
+                        maxLength={12}
+                        required
+                        style={{
+                          letterSpacing: "0.4em",
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "var(--text-lg)",
+                          textAlign: "center",
+                        }}
+                      />
+                    </FormField>
+
+                    {error && <p className={styles.errorBox}>{error}</p>}
+
+                    <Button type="submit" variant="primary" size="lg" full loading={submitting} rightIcon={<FaArrowRight />}>
+                      Verify & access file
+                    </Button>
+                  </form>
+                </motion.div>
+              )}
+
+              {verificationSuccess && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4 }}
+                  className={styles.success}
+                >
+                  <div className={styles.successIcon}>
+                    <FaCheckCircle />
+                  </div>
+                  <h3 className={styles.successTitle}>Access granted</h3>
+                  <p className={styles.successCopy}>You can now download the file.</p>
+                  <Button onClick={handleDownload} variant="primary" size="lg" loading={submitting} leftIcon={<FaDownload />} full>
+                    Download file
+                  </Button>
+                </motion.div>
+              )}
+            </CardBody>
+          </Card>
+
+          {/* Marketing aside */}
+          <Card variant="surface" elevation={1} padding="lg" className={styles.marketing}>
+            <CardBody style={{ padding: 0 }}>
+              <div className={styles.marketingHead}>
+                <Badge variant="brand" size="sm">Why SecureShare</Badge>
+                <h3 className={styles.marketingTitle}>Built for files you don&apos;t want leaked</h3>
               </div>
-              <h3>Access Granted!</h3>
-              <p>You now have access to download this file.</p>
-              <button className={styles.downloadButton} onClick={handleDownload} disabled={submitting}>
-                {submitting ? (
-                  "Downloading..."
-                ) : (
-                  <>
-                    <FaDownload /> Download File
-                  </>
-                )}
-              </button>
-            </motion.div>
-          )}
-        </div>
+              <ul className={styles.trustList}>
+                {TRUST.map((t) => (
+                  <li key={t.title} className={styles.trustRow}>
+                    <span className={styles.trustIcon}>{t.icon}</span>
+                    <div>
+                      <p className={styles.trustTitle}>{t.title}</p>
+                      <p className={styles.trustBody}>{t.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className={styles.marketingCta}>
+                <p>Need to share your own files securely?</p>
+                <Link to="/register" style={{ textDecoration: "none" }}>
+                  <Button variant="secondary" size="md" rightIcon={<FaArrowRight />}>Sign up free</Button>
+                </Link>
+              </div>
+            </CardBody>
+          </Card>
+        </motion.div>
 
-        <div className={styles.marketingSection}>
-          <h3>Why use SecureShare?</h3>
-          <div className={styles.features}>
-            <div className={styles.feature}>
-              <div className={styles.featureIcon}>🔒</div>
-              <div className={styles.featureText}>
-                <h4>End-to-End Encryption</h4>
-                <p>Your files are encrypted with AES-256 for maximum security.</p>
-              </div>
-            </div>
-            <div className={styles.feature}>
-              <div className={styles.featureIcon}>🔐</div>
-              <div className={styles.featureText}>
-                <h4>Owner Verification</h4>
-                <p>Two-step verification ensures only authorized access.</p>
-              </div>
-            </div>
-            <div className={styles.feature}>
-              <div className={styles.featureIcon}>⏱️</div>
-              <div className={styles.featureText}>
-                <h4>Expiring Links</h4>
-                <p>All shared files automatically expire for added security.</p>
-              </div>
-            </div>
-          </div>
-          <div className={styles.cta}>
-            <p>Need to share your own files securely?</p>
-            <Link to="/register" className={styles.signupButton}>
-              Sign Up Free
-            </Link>
-          </div>
-        </div>
-
-        <div className={styles.footer}>
-          <p>&copy; {new Date().getFullYear()} SecureShare. All rights reserved.</p>
+        <footer className={styles.footer}>
+          <p>© {new Date().getFullYear()} SecureShare</p>
           <div className={styles.footerLinks}>
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
-            <Link to="/contact">Contact Us</Link>
+            <Link to="/contact">Contact</Link>
+            <a href="#">Privacy</a>
+            <a href="#">Terms</a>
           </div>
-        </div>
+        </footer>
       </div>
-    </div>
-  )
-}
+    </>
+  );
+};
 
-// Helper functions
-const formatFileSize = (bytes) => {
-  if (bytes === 0) return "0 Bytes"
-  const k = 1024
-  const sizes = ["Bytes", "KB", "MB", "GB"]
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
-}
-
-const formatFileType = (mimeType) => {
-  if (!mimeType) return "Unknown"
-
-  const types = {
-    "image/": "Image",
-    "application/pdf": "PDF Document",
-    "application/msword": "Word Document",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "Word Document",
-    "application/vnd.ms-excel": "Excel Spreadsheet",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "Excel Spreadsheet",
-    "text/": "Text Document",
-    "video/": "Video",
-    "audio/": "Audio",
-    "application/zip": "ZIP Archive",
-    "application/x-rar-compressed": "RAR Archive",
-  }
-
-  for (const [prefix, label] of Object.entries(types)) {
-    if (mimeType.startsWith(prefix)) {
-      return label
-    }
-  }
-
-  return mimeType.split("/")[1]?.toUpperCase() || "File"
-}
-
-export default SharePage
+export default SharePage;

@@ -1,357 +1,181 @@
-"use client"
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { FaUser, FaLock, FaEye, FaEyeSlash, FaArrowLeft, FaSave, FaEnvelope, FaUserCog } from "react-icons/fa";
+import { Button, Card, CardBody, IconButton, Input } from "../components/atoms";
+import { FormField, useToast } from "../components/molecules";
+import { PageHeader, TabBar, TableSkeleton } from "../components/organisms/shared";
+import { getUserProfile, updateUserProfile, updateUserPassword } from "../api";
+import styles from "./EditProfile.module.css";
 
-import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
-import { motion } from "framer-motion"
-import { FaUser, FaLock, FaEye, FaEyeSlash, FaArrowLeft, FaSave } from "react-icons/fa"
-import styles from "./EditProfile.module.css"
-import { getUserProfile, updateUserProfile, updateUserPassword } from "../api"
+const TABS = [
+  { id: "profile",  label: "Profile information", icon: <FaUser /> },
+  { id: "password", label: "Change password",     icon: <FaLock /> },
+];
 
 const EditProfile = () => {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
-  const [activeTab, setActiveTab] = useState("profile")
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  const toast = useToast();
 
-  // Profile form state
-  const [profileData, setProfileData] = useState({
-    username: "",
-  })
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState("profile");
 
-  // Password form state
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  })
-
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [username, setUsername] = useState("");
+  const [pw, setPw] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [show, setShow] = useState({ current: false, next: false, confirm: false });
+  const [pwError, setPwError] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("token")
-    if (!token) {
-      navigate("/login")
-      return
-    }
-
-    const fetchUserData = async () => {
-      setLoading(true)
+    const token = localStorage.getItem("token");
+    if (!token) { navigate("/login"); return; }
+    (async () => {
+      setLoading(true);
       try {
-        const response = await getUserProfile()
-        if (response.error) {
-          if (response.error === "Unauthorized") {
-            localStorage.removeItem("token")
-            navigate("/login")
-            return
-          }
-          setError(response.error)
+        const res = await getUserProfile();
+        if (res.error) {
+          if (res.error === "Unauthorized") { localStorage.removeItem("token"); navigate("/login"); return; }
+          toast.error({ title: "Couldn't load profile", description: res.error });
         } else {
-          setUser(response.user)
-          setProfileData({
-            username: response.user.username,
-          })
+          setUser(res.user);
+          setUsername(res.user.username || "");
         }
       } catch (err) {
-        setError("Failed to fetch user data. Please try again.")
-        console.error("Fetch User Error:", err)
+        console.error("Fetch User Error:", err);
+        toast.error({ title: "Couldn't load profile", description: "Please try again." });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    })();
+  }, [navigate, toast]);
 
-    fetchUserData()
-  }, [navigate])
-
-  const handleProfileChange = (e) => {
-    setProfileData({
-      ...profileData,
-      [e.target.name]: e.target.value,
-    })
-  }
-
-  const handlePasswordChange = (e) => {
-    setPasswordData({
-      ...passwordData,
-      [e.target.name]: e.target.value,
-    })
-  }
-
-  const handleProfileSubmit = async (e) => {
-    e.preventDefault()
-    setError(null)
-    setSuccess(null)
-    setLoading(true)
-
+  const saveProfile = async (e) => {
+    e.preventDefault();
+    setSaving(true);
     try {
-      const response = await updateUserProfile(profileData)
-      if (response.error) {
-        setError(response.error)
-      } else {
-        setSuccess("Profile updated successfully!")
-        setUser({
-          ...user,
-          username: profileData.username,
-        })
+      const res = await updateUserProfile({ username });
+      if (res.error) toast.error({ title: "Update failed", description: res.error });
+      else { setUser((u) => ({ ...u, username })); toast.success({ title: "Profile updated" }); }
+    } catch (err) {
+      console.error("Update Profile Error:", err);
+      toast.error({ title: "Update failed", description: "Please try again." });
+    } finally { setSaving(false); }
+  };
 
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-          setSuccess(null)
-        }, 3000)
+  const savePassword = async (e) => {
+    e.preventDefault();
+    setPwError("");
+    if (pw.newPassword !== pw.confirmPassword) { setPwError("New passwords do not match."); return; }
+    if (pw.newPassword.length < 8) { setPwError("Password must be at least 8 characters."); return; }
+    setSaving(true);
+    try {
+      const res = await updateUserPassword(pw);
+      if (res.error) toast.error({ title: "Couldn't update password", description: res.error });
+      else {
+        setPw({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        toast.success({ title: "Password updated", description: "Use it next time you sign in." });
       }
     } catch (err) {
-      setError("Failed to update profile. Please try again.")
-      console.error("Update Profile Error:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
+      console.error("Update Password Error:", err);
+      toast.error({ title: "Couldn't update password", description: "Please try again." });
+    } finally { setSaving(false); }
+  };
 
-  const handlePasswordSubmit = async (e) => {
-    e.preventDefault()
-    setError(null)
-    setSuccess(null)
-    setLoading(true)
-
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setError("New passwords do not match")
-      setLoading(false)
-      return
-    }
-
-    if (passwordData.newPassword.length < 8) {
-      setError("Password must be at least 8 characters long")
-      setLoading(false)
-      return
-    }
-
-    try {
-      const response = await updateUserPassword(passwordData)
-      if (response.error) {
-        setError(response.error)
-      } else {
-        setSuccess("Password updated successfully!")
-        setPasswordData({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: "",
-        })
-
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-          setSuccess(null)
-        }, 3000)
-      }
-    } catch (err) {
-      setError("Failed to update password. Please try again.")
-      console.error("Update Password Error:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (loading && !user) {
-    return (
-      <div className={styles.loadingContainer}>
-        <div className={styles.spinner}></div>
-        <p>Loading your profile...</p>
-      </div>
-    )
-  }
+  const pwToggle = (key, label) => (
+    <IconButton
+      size="sm"
+      variant="ghost"
+      aria-label={show[key] ? `Hide ${label}` : `Show ${label}`}
+      onClick={() => setShow((s) => ({ ...s, [key]: !s[key] }))}
+      style={{ pointerEvents: "auto" }}
+    >
+      {show[key] ? <FaEyeSlash /> : <FaEye />}
+    </IconButton>
+  );
 
   return (
-    <div className={styles.editProfileContainer}>
-      <motion.div
-        className={styles.header}
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <button className={styles.backButton} onClick={() => navigate("/dashboard")}>
-          <FaArrowLeft /> Back to Dashboard
-        </button>
-        <h1>Edit Your Profile</h1>
-      </motion.div>
+    <div className={styles.page}>
+      <PageHeader
+        icon={<FaUserCog />}
+        title="Edit your profile"
+        subtitle="Update your account details and password"
+        actions={<Button variant="ghost" leftIcon={<FaArrowLeft />} onClick={() => navigate("/dashboard")}>Back to dashboard</Button>}
+      />
 
-      <motion.div
-        className={styles.tabsContainer}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <button
-          className={`${styles.tabButton} ${activeTab === "profile" ? styles.activeTab : ""}`}
-          onClick={() => setActiveTab("profile")}
-        >
-          Profile Information
-        </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === "password" ? styles.activeTab : ""}`}
-          onClick={() => setActiveTab("password")}
-        >
-          Change Password
-        </button>
-      </motion.div>
+      <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
-      {error && (
-        <motion.div
-          className={styles.error}
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          {error}
-        </motion.div>
-      )}
+      <div className={styles.content}>
+        {loading && !user ? (
+          <TableSkeleton rows={3} cols={1} />
+        ) : (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+            <Card variant="surface" elevation={1} padding="lg" className={styles.card}>
+              <CardBody style={{ padding: 0 }}>
+                {activeTab === "profile" ? (
+                  <form className={styles.form} onSubmit={saveProfile}>
+                    <FormField label="Username" required>
+                      <Input name="username" value={username} onChange={(e) => setUsername(e.target.value)} leftIcon={<FaUser />} required />
+                    </FormField>
 
-      {success && (
-        <motion.div
-          className={styles.success}
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          {success}
-        </motion.div>
-      )}
+                    <FormField label="Email" hint="Email cannot be changed.">
+                      <Input type="email" value={user?.email || ""} leftIcon={<FaEnvelope />} disabled />
+                    </FormField>
 
-      <motion.div
-        className={styles.formContainer}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
-        {activeTab === "profile" && (
-          <form className={styles.form} onSubmit={handleProfileSubmit}>
-            <div className={styles.formGroup}>
-              <label htmlFor="username">Username</label>
-              <div className={styles.inputGroup}>
-                <div className={styles.inputIcon}>
-                  <FaUser />
-                </div>
-                <input
-                  type="text"
-                  id="username"
-                  name="username"
-                  value={profileData.username}
-                  onChange={handleProfileChange}
-                  required
-                />
-              </div>
-            </div>
+                    <div className={styles.actions}>
+                      <Button type="submit" variant="primary" leftIcon={<FaSave />} loading={saving}>Save changes</Button>
+                    </div>
+                  </form>
+                ) : (
+                  <form className={styles.form} onSubmit={savePassword}>
+                    <FormField label="Current password" required>
+                      <Input
+                        type={show.current ? "text" : "password"}
+                        value={pw.currentPassword}
+                        onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })}
+                        leftIcon={<FaLock />}
+                        autoComplete="current-password"
+                        required
+                        rightSlot={pwToggle("current", "current password")}
+                      />
+                    </FormField>
 
-            <div className={styles.formGroup}>
-              <label htmlFor="email">Email</label>
-              <div className={styles.inputGroup}>
-                <input type="email" id="email" value={user?.email || ""} disabled className={styles.disabledInput} />
-              </div>
-              <p className={styles.helperText}>Email cannot be changed</p>
-            </div>
+                    <FormField label="New password" required hint="At least 8 characters.">
+                      <Input
+                        type={show.next ? "text" : "password"}
+                        value={pw.newPassword}
+                        onChange={(e) => setPw({ ...pw, newPassword: e.target.value })}
+                        leftIcon={<FaLock />}
+                        autoComplete="new-password"
+                        required
+                        rightSlot={pwToggle("next", "new password")}
+                      />
+                    </FormField>
 
-            <button type="submit" className={styles.submitButton} disabled={loading}>
-              {loading ? (
-                "Saving..."
-              ) : (
-                <>
-                  <FaSave /> Save Changes
-                </>
-              )}
-            </button>
-          </form>
+                    <FormField label="Confirm new password" required error={pwError || undefined}>
+                      <Input
+                        type={show.confirm ? "text" : "password"}
+                        value={pw.confirmPassword}
+                        onChange={(e) => setPw({ ...pw, confirmPassword: e.target.value })}
+                        leftIcon={<FaLock />}
+                        autoComplete="new-password"
+                        required
+                        rightSlot={pwToggle("confirm", "confirmation")}
+                      />
+                    </FormField>
+
+                    <div className={styles.actions}>
+                      <Button type="submit" variant="primary" leftIcon={<FaSave />} loading={saving}>Update password</Button>
+                    </div>
+                  </form>
+                )}
+              </CardBody>
+            </Card>
+          </motion.div>
         )}
-
-        {activeTab === "password" && (
-          <form className={styles.form} onSubmit={handlePasswordSubmit}>
-            <div className={styles.formGroup}>
-              <label htmlFor="currentPassword">Current Password</label>
-              <div className={styles.inputGroup}>
-                <div className={styles.inputIcon}>
-                  <FaLock />
-                </div>
-                <input
-                  type={showCurrentPassword ? "text" : "password"}
-                  id="currentPassword"
-                  name="currentPassword"
-                  value={passwordData.currentPassword}
-                  onChange={handlePasswordChange}
-                  required
-                />
-                <button
-                  type="button"
-                  className={styles.passwordToggle}
-                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                >
-                  {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label htmlFor="newPassword">New Password</label>
-              <div className={styles.inputGroup}>
-                <div className={styles.inputIcon}>
-                  <FaLock />
-                </div>
-                <input
-                  type={showNewPassword ? "text" : "password"}
-                  id="newPassword"
-                  name="newPassword"
-                  value={passwordData.newPassword}
-                  onChange={handlePasswordChange}
-                  required
-                />
-                <button
-                  type="button"
-                  className={styles.passwordToggle}
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                >
-                  {showNewPassword ? <FaEyeSlash /> : <FaEye />}
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label htmlFor="confirmPassword">Confirm New Password</label>
-              <div className={styles.inputGroup}>
-                <div className={styles.inputIcon}>
-                  <FaLock />
-                </div>
-                <input
-                  type={showConfirmPassword ? "text" : "password"}
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  value={passwordData.confirmPassword}
-                  onChange={handlePasswordChange}
-                  required
-                />
-                <button
-                  type="button"
-                  className={styles.passwordToggle}
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                </button>
-              </div>
-            </div>
-
-            <button type="submit" className={styles.submitButton} disabled={loading}>
-              {loading ? (
-                "Updating..."
-              ) : (
-                <>
-                  <FaSave /> Update Password
-                </>
-              )}
-            </button>
-          </form>
-        )}
-      </motion.div>
+      </div>
     </div>
-  )
-}
+  );
+};
 
-export default EditProfile
-
+export default EditProfile;

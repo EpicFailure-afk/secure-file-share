@@ -1,442 +1,283 @@
-"use client"
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaBuilding, FaUserTie,
+  FaBriefcase, FaKey, FaInfoCircle, FaPlus, FaUsers, FaCrown,
+} from "react-icons/fa";
+import { Button, Card, CardBody, IconButton, Input, Divider, Badge } from "../components/atoms";
+import { FormField, Modal, useToast } from "../components/molecules";
+import { registerUser } from "../api";
+import styles from "./auth.module.css";
 
-import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { motion, AnimatePresence } from "framer-motion"
-import { 
-  FaUser, 
-  FaEnvelope, 
-  FaLock, 
-  FaEye, 
-  FaEyeSlash, 
-  FaCheckCircle,
-  FaBuilding,
-  FaUserTie,
-  FaBriefcase,
-  FaKey,
-  FaInfoCircle,
-  FaPlus,
-  FaUsers,
-  FaCrown
-} from "react-icons/fa"
-import styles from "./Register.module.css"
-import { registerUser } from "../api"
+const ROLES = [
+  { value: "staff", label: "Staff", description: "Regular employee with basic file access." },
+  { value: "admin", label: "Admin", description: "Administrator with user management." },
+];
 
 const Register = () => {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
+  const toast = useToast();
   const [userData, setUserData] = useState({
-    username: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    role: "staff",
-    inviteCode: "",
-    jobTitle: "",
-    department: "",
-    organizationName: "",
-  })
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(false)
-  const [successMessage, setSuccessMessage] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [orgAction, setOrgAction] = useState("none") // "none", "create", or "join"
+    username: "", email: "", password: "", confirmPassword: "",
+    role: "staff", inviteCode: "", jobTitle: "", department: "", organizationName: "",
+  });
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [orgAction, setOrgAction] = useState("none"); // none | create | join
 
-  const roles = [
-    { value: "staff", label: "Staff", description: "Regular employee with basic file access" },
-    { value: "admin", label: "Admin", description: "Administrator with user management" },
-  ]
-
-  const handleChange = (e) => {
-    setUserData({ ...userData, [e.target.name]: e.target.value })
-  }
+  const change = (e) => setUserData({ ...userData, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+    e.preventDefault();
+    setError(""); setLoading(true);
 
-    if (userData.password !== userData.confirmPassword) {
-      setError("Passwords do not match")
-      setLoading(false)
-      return
-    }
-
-    if (userData.password.length < 8) {
-      setError("Password must be at least 8 characters long")
-      setLoading(false)
-      return
-    }
-
-    // Validate organization fields
-    if (orgAction === "create" && !userData.organizationName.trim()) {
-      setError("Organization name is required")
-      setLoading(false)
-      return
-    }
-
-    if (orgAction === "join" && !userData.inviteCode.trim()) {
-      setError("Invite code is required to join an organization")
-      setLoading(false)
-      return
-    }
+    if (userData.password !== userData.confirmPassword) { setError("Passwords do not match"); setLoading(false); return; }
+    if (userData.password.length < 8) { setError("Password must be at least 8 characters long"); setLoading(false); return; }
+    if (orgAction === "create" && !userData.organizationName.trim()) { setError("Organization name is required"); setLoading(false); return; }
+    if (orgAction === "join" && !userData.inviteCode.trim()) { setError("Invite code is required to join an organization"); setLoading(false); return; }
 
     try {
-      const registrationData = {
+      const reg = {
         username: userData.username,
         email: userData.email,
         password: userData.password,
         jobTitle: userData.jobTitle,
         department: userData.department,
-      }
-
-      // Handle organization actions
+      };
       if (orgAction === "create") {
-        registrationData.createOrg = true
-        registrationData.organizationName = userData.organizationName
-        registrationData.role = "manager" // Creator becomes manager
+        reg.createOrg = true;
+        reg.organizationName = userData.organizationName;
+        reg.role = "manager";
       } else if (orgAction === "join") {
-        registrationData.inviteCode = userData.inviteCode
-        registrationData.role = userData.role
+        reg.inviteCode = userData.inviteCode;
+        reg.role = userData.role;
       } else {
-        registrationData.role = "staff"
+        reg.role = "staff";
       }
 
-      const response = await registerUser(registrationData)
-
-      if (response.error) {
-        if (response.error.includes("User already exists") || response.error.includes("email already exists")) {
-          setError("An account with this email already exists. Please use a different email.")
-        } else if (response.error.includes("invite code")) {
-          setError("Invalid or expired invite code. Please check and try again.")
-        } else if (response.error.includes("Organization name")) {
-          setError("Organization name already taken. Please choose a different name.")
+      const res = await registerUser(reg);
+      if (res.error) {
+        const msg = res.error;
+        if (msg.includes("User already exists") || msg.includes("email already exists")) {
+          setError("An account with this email already exists.");
+        } else if (msg.includes("invite code")) {
+          setError("Invalid or expired invite code.");
+        } else if (msg.includes("Organization name")) {
+          setError("Organization name already taken.");
         } else {
-          setError(response.error)
+          setError(msg);
         }
       } else {
-        setSuccess(true)
-        setSuccessMessage(response.message || "Registration successful!")
-        setUserData({ 
-          username: "", 
-          email: "", 
-          password: "", 
-          confirmPassword: "",
-          role: "staff",
-          inviteCode: "",
-          jobTitle: "",
-          department: "",
-          organizationName: "",
-        })
-
-        // Redirect to login page after 2 seconds
-        setTimeout(() => {
-          navigate("/login")
-        }, 2000)
+        setSuccess(true);
+        setSuccessMessage(res.message || "Registration successful!");
+        toast.success({ title: "Account created", description: "Redirecting to login…" });
+        setTimeout(() => navigate("/login"), 1800);
       }
     } catch (err) {
-      console.error("Registration error:", err)
-      setError("Network error. Please check your connection.")
-    } finally {
-      setLoading(false)
-    }
-  }
+      console.error("Registration error:", err);
+      setError("Network error. Please check your connection.");
+    } finally { setLoading(false); }
+  };
 
   return (
-    <div className={styles.pageWrapper}>
+    <div className={styles.page}>
       <motion.div
-        className={styles.container}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.5 }}
+        className={`${styles.card} ${styles.cardWide}`}
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.2, 0, 0, 1] }}
       >
-        <motion.div
-          className={styles.formCard}
-          initial={{ y: 50, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-        >
-          <div className={styles.formHeader}>
-            <h2>Create Account</h2>
-            <p>Join our secure file sharing platform</p>
-          </div>
+        <Card variant="glass" elevation={4} padding="lg">
+          <CardBody style={{ padding: 0 }}>
+            <header className={styles.header}>
+              <h1 className={styles.title}>Create your account</h1>
+              <p className={styles.subtitle}>Join the platform that treats your files like they matter.</p>
+            </header>
 
-          <form className={styles.registerForm} onSubmit={handleSubmit}>
-            {/* Basic Info */}
-            <div className={styles.inputGroup}>
-              <div className={styles.inputIcon}>
-                <FaUser />
+            <form className={styles.form} onSubmit={handleSubmit}>
+              <FormField label="Username" required>
+                <Input name="username" placeholder="janedoe" value={userData.username} onChange={change} leftIcon={<FaUser />} required autoComplete="username" />
+              </FormField>
+
+              <FormField label="Email" required>
+                <Input type="email" name="email" placeholder="you@company.com" value={userData.email} onChange={change} leftIcon={<FaEnvelope />} required autoComplete="email" />
+              </FormField>
+
+              <FormField label="Password" required hint="At least 8 characters.">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="••••••••"
+                  value={userData.password}
+                  onChange={change}
+                  leftIcon={<FaLock />}
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                  rightSlot={
+                    <IconButton size="sm" variant="ghost" aria-label={showPassword ? "Hide password" : "Show password"} onClick={() => setShowPassword(!showPassword)} style={{ pointerEvents: "auto" }}>
+                      {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    </IconButton>
+                  }
+                />
+              </FormField>
+
+              <FormField label="Confirm password" required>
+                <Input
+                  type={showConfirm ? "text" : "password"}
+                  name="confirmPassword"
+                  placeholder="••••••••"
+                  value={userData.confirmPassword}
+                  onChange={change}
+                  leftIcon={<FaLock />}
+                  autoComplete="new-password"
+                  required
+                  rightSlot={
+                    <IconButton size="sm" variant="ghost" aria-label={showConfirm ? "Hide password" : "Show password"} onClick={() => setShowConfirm(!showConfirm)} style={{ pointerEvents: "auto" }}>
+                      {showConfirm ? <FaEyeSlash /> : <FaEye />}
+                    </IconButton>
+                  }
+                />
+              </FormField>
+
+              <Divider label="Organization · optional" />
+
+              <div className={styles.orgActions}>
+                <button
+                  type="button"
+                  className={`${styles.orgActionBtn} ${orgAction === "create" ? styles.active : ""}`}
+                  onClick={() => setOrgAction(orgAction === "create" ? "none" : "create")}
+                >
+                  <FaPlus /> Create organization
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.orgActionBtn} ${orgAction === "join" ? styles.active : ""}`}
+                  onClick={() => setOrgAction(orgAction === "join" ? "none" : "join")}
+                >
+                  <FaUsers /> Join organization
+                </button>
               </div>
-              <input
-                type="text"
-                name="username"
-                placeholder="Username"
-                value={userData.username}
-                onChange={handleChange}
-                required
-              />
-            </div>
 
-            <div className={styles.inputGroup}>
-              <div className={styles.inputIcon}>
-                <FaEnvelope />
-              </div>
-              <input
-                type="email"
-                name="email"
-                placeholder="Email"
-                value={userData.email}
-                onChange={handleChange}
-                required
-              />
-            </div>
+              <AnimatePresence initial={false}>
+                {orgAction === "create" && (
+                  <motion.div
+                    key="create"
+                    className={styles.orgPanel}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <p className={styles.infoBox} style={{
+                      background: "color-mix(in srgb, var(--success) 14%, transparent)",
+                      borderColor: "color-mix(in srgb, var(--success) 32%, transparent)",
+                      color: "var(--success)",
+                    }}>
+                      <FaCrown />
+                      <span>You&apos;ll become the <strong>Manager</strong> of this organization.</span>
+                    </p>
 
-            <div className={styles.inputGroup}>
-              <div className={styles.inputIcon}>
-                <FaLock />
-              </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                placeholder="Password (min 8 characters)"
-                value={userData.password}
-                onChange={handleChange}
-                required
-                minLength={8}
-              />
-              <button type="button" className={styles.passwordToggle} onClick={() => setShowPassword(!showPassword)}>
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
-              </button>
-            </div>
+                    <FormField label="Organization name" required>
+                      <Input name="organizationName" placeholder="Acme Co." value={userData.organizationName} onChange={change} leftIcon={<FaBuilding />} required={orgAction === "create"} />
+                    </FormField>
 
-            <div className={styles.inputGroup}>
-              <div className={styles.inputIcon}>
-                <FaLock />
-              </div>
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                name="confirmPassword"
-                placeholder="Confirm Password"
-                value={userData.confirmPassword}
-                onChange={handleChange}
-                required
-              />
-              <button
-                type="button"
-                className={styles.passwordToggle}
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-              </button>
-            </div>
+                    <FormField label="Job title (optional)">
+                      <Input name="jobTitle" placeholder="Founder" value={userData.jobTitle} onChange={change} leftIcon={<FaBriefcase />} />
+                    </FormField>
 
-            {/* Organization Section */}
-            <div className={styles.sectionDivider}>
-              <span>Organization (Optional)</span>
-            </div>
+                    <FormField label="Department (optional)">
+                      <Input name="department" placeholder="Operations" value={userData.department} onChange={change} leftIcon={<FaBuilding />} />
+                    </FormField>
+                  </motion.div>
+                )}
 
-            <div className={styles.orgActionButtons}>
-              <button
-                type="button"
-                className={`${styles.orgActionBtn} ${orgAction === "create" ? styles.orgActionActive : ""}`}
-                onClick={() => setOrgAction(orgAction === "create" ? "none" : "create")}
-              >
-                <FaPlus /> Create Organization
-              </button>
-              <button
-                type="button"
-                className={`${styles.orgActionBtn} ${orgAction === "join" ? styles.orgActionActive : ""}`}
-                onClick={() => setOrgAction(orgAction === "join" ? "none" : "join")}
-              >
-                <FaUsers /> Join Organization
-              </button>
-            </div>
+                {orgAction === "join" && (
+                  <motion.div
+                    key="join"
+                    className={styles.orgPanel}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <FormField label="Invite code" required hint="Case-sensitive — copy it exactly.">
+                      <Input name="inviteCode" placeholder="ABCD-1234" value={userData.inviteCode} onChange={change} leftIcon={<FaKey />} required={orgAction === "join"} />
+                    </FormField>
 
-            {/* Create Organization Section */}
-            {orgAction === "create" && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className={styles.orgSection}
-              >
-                <div className={styles.infoBox} style={{ background: "rgba(76, 175, 80, 0.1)", borderColor: "#4caf50" }}>
-                  <FaCrown style={{ color: "#4caf50" }} />
-                  <span>You will become the <strong>Manager</strong> of this organization</span>
-                </div>
+                    <p className={styles.infoBox}>
+                      <FaInfoCircle />
+                      <span>Ask your organization manager for the invite code.</span>
+                    </p>
 
-                <div className={styles.inputGroup}>
-                  <div className={styles.inputIcon}>
-                    <FaBuilding />
-                  </div>
-                  <input
-                    type="text"
-                    name="organizationName"
-                    placeholder="Organization Name"
-                    value={userData.organizationName}
-                    onChange={handleChange}
-                    required={orgAction === "create"}
-                  />
-                </div>
+                    <div>
+                      <label className={styles.fieldLabel}>Select your role</label>
+                      <div className={styles.roleGrid}>
+                        {ROLES.map((role) => {
+                          const selected = userData.role === role.value;
+                          return (
+                            <label
+                              key={role.value}
+                              className={`${styles.roleCard} ${selected ? styles.roleCardActive : ""}`}
+                            >
+                              <input type="radio" name="role" value={role.value} checked={selected} onChange={change} />
+                              <span className={styles.roleHeader}>
+                                <FaUserTie /> {role.label}
+                              </span>
+                              <span className={styles.roleDesc}>{role.description}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                {/* Job Info */}
-                <div className={styles.inputGroup}>
-                  <div className={styles.inputIcon}>
-                    <FaBriefcase />
-                  </div>
-                  <input
-                    type="text"
-                    name="jobTitle"
-                    placeholder="Your Job Title (optional)"
-                    value={userData.jobTitle}
-                    onChange={handleChange}
-                  />
-                </div>
+                    <FormField label="Job title (optional)">
+                      <Input name="jobTitle" placeholder="Software Engineer" value={userData.jobTitle} onChange={change} leftIcon={<FaBriefcase />} />
+                    </FormField>
 
-                <div className={styles.inputGroup}>
-                  <div className={styles.inputIcon}>
-                    <FaBuilding />
-                  </div>
-                  <input
-                    type="text"
-                    name="department"
-                    placeholder="Your Department (optional)"
-                    value={userData.department}
-                    onChange={handleChange}
-                  />
-                </div>
-              </motion.div>
-            )}
+                    <FormField label="Department (optional)">
+                      <Input name="department" placeholder="Engineering" value={userData.department} onChange={change} leftIcon={<FaBuilding />} />
+                    </FormField>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-            {/* Join Organization Section */}
-            {orgAction === "join" && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className={styles.orgSection}
-              >
-                <div className={styles.inputGroup}>
-                  <div className={styles.inputIcon}>
-                    <FaKey />
-                  </div>
-                  <input
-                    type="text"
-                    name="inviteCode"
-                    placeholder="Organization Invite Code (case-sensitive)"
-                    value={userData.inviteCode}
-                    onChange={handleChange}
-                    required={orgAction === "join"}
-                  />
-                </div>
+              {error && <p className={styles.errorBox}>{error}</p>}
 
-                <div className={styles.infoBox}>
-                  <FaInfoCircle />
-                  <span>Get the invite code from your organization manager (case-sensitive)</span>
-                </div>
+              <Button type="submit" variant="primary" size="lg" full loading={loading}>
+                Create account
+              </Button>
 
-                {/* Role Selection */}
-                <div className={styles.roleSection}>
-                  <label className={styles.fieldLabel}>Select Your Role</label>
-                  <div className={styles.roleGrid}>
-                    {roles.map((role) => (
-                      <label
-                        key={role.value}
-                        className={`${styles.roleCard} ${userData.role === role.value ? styles.roleSelected : ""}`}
-                      >
-                        <input
-                          type="radio"
-                          name="role"
-                          value={role.value}
-                          checked={userData.role === role.value}
-                          onChange={handleChange}
-                        />
-                        <div className={styles.roleContent}>
-                          <FaUserTie className={styles.roleIcon} />
-                          <span className={styles.roleName}>{role.label}</span>
-                          <span className={styles.roleDesc}>{role.description}</span>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Job Info */}
-                <div className={styles.inputGroup}>
-                  <div className={styles.inputIcon}>
-                    <FaBriefcase />
-                  </div>
-                  <input
-                    type="text"
-                    name="jobTitle"
-                    placeholder="Job Title (optional)"
-                    value={userData.jobTitle}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className={styles.inputGroup}>
-                  <div className={styles.inputIcon}>
-                    <FaBuilding />
-                  </div>
-                  <input
-                    type="text"
-                    name="department"
-                    placeholder="Department (optional)"
-                    value={userData.department}
-                    onChange={handleChange}
-                  />
-                </div>
-              </motion.div>
-            )}
-
-            {error && <p className={styles.error}>{error}</p>}
-
-            <button type="submit" className={styles.btn} disabled={loading}>
-              {loading ? "Creating Account..." : "Sign Up"}
-            </button>
-
-            <p className={styles.loginLink}>
-              Already have an account? <Link to="/login">Sign In</Link>
-            </p>
-          </form>
-        </motion.div>
-
-        {/* Success Popup */}
-        <AnimatePresence>
-          {success && (
-            <motion.div
-              className={styles.modalOverlay}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <motion.div
-                className={styles.successModal}
-                initial={{ y: 50, opacity: 0, scale: 0.9 }}
-                animate={{ y: 0, opacity: 1, scale: 1 }}
-                exit={{ y: -50, opacity: 0, scale: 0.9 }}
-                transition={{ duration: 0.4, type: "spring" }}
-              >
-                <div className={styles.successHeader}>
-                  <FaCheckCircle className={styles.successIcon} />
-                  <h3>Registration Successful!</h3>
-                </div>
-                <div className={styles.successBody}>
-                  <p>{successMessage}</p>
-                  <p>Redirecting to login page...</p>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <p className={styles.footLink}>
+                Already have an account? <Link to="/login">Sign in</Link>
+              </p>
+            </form>
+          </CardBody>
+        </Card>
       </motion.div>
+
+      <Modal
+        open={success}
+        onClose={() => setSuccess(false)}
+        title="Registration successful"
+        description="You&apos;ll be redirected to the login page in a moment."
+        showClose={false}
+        footer={
+          <Button variant="primary" onClick={() => navigate("/login")}>Go to login now</Button>
+        }
+      >
+        <p style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Badge variant="success" dot size="lg">Welcome</Badge>
+          <span>{successMessage}</span>
+        </p>
+      </Modal>
     </div>
-  )
-}
+  );
+};
 
-export default Register
-
+export default Register;

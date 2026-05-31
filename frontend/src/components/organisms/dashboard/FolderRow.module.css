@@ -1,0 +1,86 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-3) var(--space-3);
+  /* Subtle amber tint distinguishes folders from files at a glance */
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--accent-500) 10%, var(--bg-surface)),
+    var(--bg-surface)
+  );
+  border: 1px solid color-mix(in srgb, var(--accent-500) 22%, var(--border-subtle));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elev-1);
+  transition:
+    transform var(--dur-base) var(--ease-standard),
+    box-shadow var(--dur-base) var(--ease-standard),
+    border-color var(--dur-base) var(--ease-standard),
+    background var(--dur-base) var(--ease-standard);
+}
+
+.row:hover {
+  box-shadow: var(--elev-3);
+  border-color: color-mix(in srgb, var(--accent-500) 45%, transparent);
+}
+
+.dragOver {
+  border-color: var(--accent-500);
+  border-style: dashed;
+  background: color-mix(in srgb, var(--accent-500) 18%, var(--bg-surface));
+  box-shadow: var(--elev-3);
+}
+
+.openBtn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent-500) 22%, transparent);
+  color: var(--accent-500);
+  font-size: 19px;
+  flex-shrink: 0;
+}
+
+.meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.name {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: var(--tracking-snug);
+}
+
+.sub { font-size: var(--text-xs); color: var(--fg-muted); }
+
+.chevron {
+  display: inline-flex;
+  align-items: center;
+  color: var(--fg-muted);
+  font-size: 13px;
+  transition: transform var(--dur-base) var(--ease-standard), color var(--dur-base) var(--ease-standard);
+}
+
+.openBtn:hover .chevron { transform: translateX(3px); color: var(--accent-500); }
+
+.actions { display: flex; gap: var(--space-1); flex-shrink: 0; align-items: center; }

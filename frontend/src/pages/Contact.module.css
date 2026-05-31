@@ -1,251 +1,145 @@
-.contactContainer {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem 1rem;
-    min-height: calc(100vh - 70px - 200px);
-    position: relative;
-    z-index: 2;
-  }
-  
-  .header {
-    text-align: center;
-    margin-bottom: 3rem;
-  }
-  
-  .header h1 {
-    font-size: 2.5rem;
-    background: linear-gradient(90deg, #ff8a00, #e52e71);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 1rem;
-  }
-  
-  .header p {
-    color: rgba(255, 255, 255, 0.8);
-    max-width: 700px;
-    margin: 0 auto;
-    font-size: 1.1rem;
-    line-height: 1.6;
-  }
-  
-  .contactContent {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2rem;
-    justify-content: space-between;
-  }
-  
-  .contactInfo {
-    flex: 1;
-    min-width: 300px;
-  }
-  
-  .infoCard {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
-    padding: 2rem;
-    margin-bottom: 2rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  
-  .infoCard h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
-    color: #ff8a00;
-  }
-  
-  .infoItem {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .infoIcon {
-    font-size: 1.5rem;
-    color: #e52e71;
-    margin-top: 0.2rem;
-  }
-  
-  .infoText h3 {
-    font-size: 1.1rem;
-    margin-bottom: 0.5rem;
-    color: white;
-  }
-  
-  .infoText p {
-    color: rgba(255, 255, 255, 0.7);
-    line-height: 1.5;
-  }
-  
-  .socialLinks {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1.5rem;
-  }
-  
-  .socialLink {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    font-size: 1.2rem;
-    transition: all 0.3s ease;
-  }
-  
-  .socialLink:hover {
-    background: linear-gradient(90deg, #ff8a00, #e52e71);
-    transform: translateY(-3px);
-  }
-  
-  .contactForm {
-    flex: 1;
-    min-width: 300px;
-  }
-  
-  .formCard {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
-    padding: 2rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  
-  .formCard h2 {
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
-    color: #ff8a00;
-  }
-  
-  .form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-  
-  .formGroup {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .formGroup label {
-    font-size: 1rem;
-    color: rgba(255, 255, 255, 0.9);
-  }
-  
-  .inputGroup {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-  
-  .inputIcon {
-    position: absolute;
-    left: 15px;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 1rem;
-  }
-  
-  .inputGroup input,
-  .inputGroup textarea,
-  .inputGroup select {
-    width: 100%;
-    padding: 15px 15px 15px 45px;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    outline: none;
-    transition: all 0.3s ease;
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    font-family: inherit;
-  }
-  
-  .inputGroup textarea {
-    min-height: 150px;
-    resize: vertical;
-  }
-  
-  .inputGroup input::placeholder,
-  .inputGroup textarea::placeholder,
-  .inputGroup select::placeholder {
-    color: rgba(255, 255, 255, 0.5);
-  }
-  
-  .inputGroup input:focus,
-  .inputGroup textarea:focus,
-  .inputGroup select:focus {
-    background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 0 0 2px rgba(255, 138, 0, 0.2);
-  }
-  
-  .submitButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 15px;
-    border: none;
-    border-radius: 8px;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    background: linear-gradient(90deg, #ff8a00, #e52e71);
-    color: white;
-    transition: all 0.3s ease;
-    margin-top: 1rem;
-  }
-  
-  .submitButton:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 7px 14px rgba(229, 46, 113, 0.3);
-  }
-  
-  .submitButton:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-  
-  .error {
-    color: #ff4d4d;
-    background: rgba(255, 77, 77, 0.1);
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 1.5rem;
-    border-left: 3px solid #ff4d4d;
-  }
-  
-  .success {
-    color: #4caf50;
-    background: rgba(76, 175, 80, 0.1);
-    padding: 1rem;
-    border-radius: 8px;
-    margin-bottom: 1.5rem;
-    border-left: 3px solid #4caf50;
-  }
-  
-  @media (max-width: 768px) {
-    .contactContent {
-      flex-direction: column;
-    }
-  
-    .formCard,
-    .infoCard {
-      padding: 1.5rem;
-    }
-  
-    .header h1 {
-      font-size: 2rem;
-    }
-  }
-  
+.page {
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-9) var(--space-5);
+  position: relative;
+  z-index: 2;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 5vw, var(--text-3xl));
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  background: var(--brand-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.lead {
+  max-width: 560px;
+  color: var(--fg-muted);
+  font-size: var(--text-md);
+  line-height: var(--lh-relaxed);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.infoCard { height: 100%; }
+
+.infoTitle, .formTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-snug);
+  margin-bottom: var(--space-6);
+  color: var(--fg-primary);
+}
+
+.infoList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: 0;
+  margin: 0;
+}
+
+.infoRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.infoIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--brand-500) 16%, transparent);
+  color: var(--brand-500);
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.infoLabel {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--fg-muted);
+  margin-bottom: 2px;
+}
+
+.infoValue {
+  font-size: var(--text-sm);
+  color: var(--fg-primary);
+  font-weight: 500;
+}
+
+.socials {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-7);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.socialBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  color: var(--fg-secondary);
+  background: var(--glass-bg);
+  transition:
+    color var(--dur-base) var(--ease-standard),
+    border-color var(--dur-base) var(--ease-standard),
+    background var(--dur-base) var(--ease-standard);
+}
+
+.socialBtn:hover {
+  color: var(--brand-500);
+  border-color: color-mix(in srgb, var(--brand-500) 40%, transparent);
+  background: color-mix(in srgb, var(--brand-500) 14%, transparent);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.errorBox {
+  padding: var(--space-3) var(--space-4);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 32%, transparent);
+  color: var(--danger);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 900px) {
+  .grid { grid-template-columns: 1fr; }
+}

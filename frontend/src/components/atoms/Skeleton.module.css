@@ -1,0 +1,39 @@
+.sk {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--fg-muted) 18%, transparent);
+  isolation: isolate;
+}
+
+.sk::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--fg-primary) 8%, transparent) 50%,
+    transparent 100%
+  );
+  animation: sk-shimmer 1.4s var(--ease-standard) infinite;
+}
+
+.rect { /* defaults */ }
+.text { display: inline-block; }
+.circle { aspect-ratio: 1 / 1; }
+
+.textBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+@keyframes sk-shimmer {
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk::after { animation: none; }
+}

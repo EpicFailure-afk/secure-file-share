@@ -1,72 +1,93 @@
-"use client"
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { FaGithub, FaLinkedin, FaTwitter, FaHeart } from "react-icons/fa";
+import styles from "./Footer.module.css";
 
-import { FaGithub, FaLinkedin, FaTwitter, FaHeart } from "react-icons/fa"
-import { motion } from "framer-motion"
-import styles from "./Footer.module.css"
-import { Link } from "react-router-dom"
+const linkGroups = [
+  {
+    title: "Product",
+    items: [
+      { label: "Features", href: "#" },
+      { label: "Pricing", href: "#" },
+      { label: "Changelog", href: "#" },
+    ],
+  },
+  {
+    title: "Company",
+    items: [
+      { label: "About", href: "#" },
+      { label: "Careers", href: "#" },
+      { label: "Blog", href: "#" },
+    ],
+  },
+  {
+    title: "Support",
+    items: [
+      { label: "Help Center", href: "#" },
+      { label: "Contact", to: "/contact" },
+      { label: "Privacy", href: "#" },
+    ],
+  },
+];
 
-const Footer = () => {
-  return (
-    <footer className={styles.footer}>
-      <div className={styles.content}>
-        <div className={styles.brand}>
-          <h3>SecureShare</h3>
-          <p>Secure file sharing made simple</p>
-        </div>
+const socials = [
+  { icon: <FaGithub />,   href: "https://github.com",   label: "GitHub" },
+  { icon: <FaLinkedin />, href: "https://linkedin.com", label: "LinkedIn" },
+  { icon: <FaTwitter />,  href: "https://twitter.com",  label: "Twitter" },
+];
 
-        <div className={styles.links}>
-          <div className={styles.linkGroup}>
-            <h4>Company</h4>
-            <a href="#">About Us</a>
-            <a href="#">Careers</a>
-            <a href="#">Blog</a>
-          </div>
-
-          <div className={styles.linkGroup}>
-            <h4>Support</h4>
-            <a href="#">Help Center</a>
-            <Link to="/contact">Contact Us</Link>
-            <a href="#">Privacy Policy</a>
-          </div>
+const Footer = () => (
+  <footer className={styles.footer}>
+    <div className={styles.inner}>
+      <div className={styles.brandCol}>
+        <Link to="/" className={styles.brandLink}>
+          <span className={styles.brandMark} aria-hidden="true" />
+          <span className={styles.brandText}>SecureShare</span>
+        </Link>
+        <p className={styles.tagline}>End-to-end encrypted file sharing for teams that care about privacy.</p>
+        <div className={styles.socials}>
+          {socials.map((s) => (
+            <motion.a
+              key={s.label}
+              href={s.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={s.label}
+              whileHover={{ y: -2 }}
+              transition={{ duration: 0.15 }}
+              className={styles.socialBtn}
+            >
+              {s.icon}
+            </motion.a>
+          ))}
         </div>
       </div>
 
-      <div className={styles.bottom}>
-        <p>&copy; {new Date().getFullYear()} SecureShare. All rights reserved.</p>
+      <nav className={styles.linksGrid} aria-label="Footer">
+        {linkGroups.map((g) => (
+          <div key={g.title}>
+            <h4 className={styles.groupTitle}>{g.title}</h4>
+            <ul className={styles.linkList}>
+              {g.items.map((it) =>
+                it.to ? (
+                  <li key={it.label}><Link to={it.to}>{it.label}</Link></li>
+                ) : (
+                  <li key={it.label}><a href={it.href}>{it.label}</a></li>
+                ),
+              )}
+            </ul>
+          </div>
+        ))}
+      </nav>
+    </div>
 
-        <div className={styles.socialIcons}>
-          <motion.a
-            href="https://github.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            whileHover={{ y: -5, color: "#ff8a00" }}
-          >
-            <FaGithub />
-          </motion.a>
-          <motion.a
-            href="https://linkedin.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            whileHover={{ y: -5, color: "#ff8a00" }}
-          >
-            <FaLinkedin />
-          </motion.a>
-          <motion.a
-            href="https://twitter.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            whileHover={{ y: -5, color: "#ff8a00" }}
-          >
-            <FaTwitter />
-          </motion.a>
-        </div>
+    <div className={styles.bottom}>
+      <p>© {new Date().getFullYear()} SecureShare. All rights reserved.</p>
+      <p className={styles.love}>
+        Made with <FaHeart className={styles.heart} aria-hidden="true" /> by the SecureShare team
+      </p>
+    </div>
+  </footer>
+);
 
-        <p className={styles.love}>
-          Made with <FaHeart className={styles.heart} /> by SecureShare Team
-        </p>
-      </div>
-    </footer>
-  )
-}
-
-export default Footer
+export default Footer;

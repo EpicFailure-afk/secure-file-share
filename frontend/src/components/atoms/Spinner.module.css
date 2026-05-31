@@ -1,0 +1,22 @@
+.spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--brand-500);
+  animation: sp-rot 700ms linear infinite;
+  flex-shrink: 0;
+}
+
+.tone_brand { border-top-color: var(--brand-500); }
+.tone_neutral { border-top-color: var(--fg-primary); }
+.tone_danger { border-top-color: var(--danger); }
+.tone_success { border-top-color: var(--success); }
+.tone_white { border: 2px solid rgba(255,255,255,0.25); border-top-color: #fff; }
+
+@keyframes sp-rot {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2s; }
+}

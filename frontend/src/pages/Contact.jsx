@@ -1,236 +1,149 @@
-"use client"
-
-import { useState } from "react"
-import { motion } from "framer-motion"
+import { useState } from "react";
+import { motion } from "framer-motion";
 import {
-  FaEnvelope,
-  FaPhone,
-  FaMapMarkerAlt,
-  FaClock,
-  FaUser,
-  FaPaperPlane,
-  FaGithub,
-  FaLinkedin,
-  FaTwitter,
-  FaFacebook,
-} from "react-icons/fa"
-import styles from "./Contact.module.css"
-import { sendContactForm } from "../api"
+  FaEnvelope, FaPhone, FaMapMarkerAlt, FaClock,
+  FaUser, FaPaperPlane, FaGithub, FaLinkedin, FaTwitter, FaFacebook,
+} from "react-icons/fa";
+import { Button, Card, CardBody, Badge } from "../components/atoms";
+import { FormField, useToast } from "../components/molecules";
+import Input from "../components/atoms/Input";
+import Textarea from "../components/atoms/Textarea";
+import { sendContactForm } from "../api";
+import styles from "./Contact.module.css";
+
+const contactRows = [
+  { icon: <FaEnvelope />,      title: "Email",          body: "support@secureshare.com" },
+  { icon: <FaPhone />,         title: "Phone",          body: "+20 1062 555 816" },
+  { icon: <FaMapMarkerAlt />,  title: "Address",        body: "Delta University" },
+  { icon: <FaClock />,         title: "Business hours", body: "Always on — full time" },
+];
+
+const socials = [
+  { icon: <FaGithub />,   label: "GitHub",   href: "https://github.com" },
+  { icon: <FaLinkedin />, label: "LinkedIn", href: "https://linkedin.com" },
+  { icon: <FaTwitter />,  label: "Twitter",  href: "https://twitter.com" },
+  { icon: <FaFacebook />, label: "Facebook", href: "https://facebook.com" },
+];
 
 const Contact = () => {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: "",
-  })
+  const [formData, setFormData] = useState({ name: "", email: "", subject: "", message: "" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const toast = useToast();
 
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
+  const change = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    setSuccess(null)
-
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(""); setLoading(true);
     try {
-      const response = await sendContactForm(formData)
-
-      if (response.error) {
-        setError(response.error)
+      const res = await sendContactForm(formData);
+      if (res.error) {
+        setError(res.error);
       } else {
-        setSuccess("Your message has been sent successfully! We'll get back to you soon.")
-        setFormData({
-          name: "",
-          email: "",
-          subject: "",
-          message: "",
-        })
+        toast.success({ title: "Message sent", description: "We'll get back to you within 24 hours." });
+        setFormData({ name: "", email: "", subject: "", message: "" });
       }
     } catch (err) {
-      setError("Failed to send message. Please try again later.")
-      console.error("Contact Form Error:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
+      console.error("Contact Form Error:", err);
+      setError("Failed to send message. Please try again later.");
+    } finally { setLoading(false); }
+  };
 
   return (
-    <div className={styles.contactContainer}>
-      <motion.div
-        className={styles.header}
-        initial={{ opacity: 0, y: -20 }}
+    <div className={styles.page}>
+      <motion.header
+        className={styles.heading}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h1>Contact Us</h1>
-        <p>
-          Have questions or feedback? We&apos;d love to hear from you. Fill out the form below or reach out to us directly
-          using the contact information.
+        <Badge variant="brand" size="sm">Talk to us</Badge>
+        <h1 className={styles.title}>We&apos;re a message away</h1>
+        <p className={styles.lead}>
+          Bug, feature request, partnership idea, or just want to say hi — drop a note and a real human will reply.
         </p>
-      </motion.div>
+      </motion.header>
 
-      <div className={styles.contactContent}>
+      <div className={styles.grid}>
         <motion.div
-          className={styles.contactInfo}
-          initial={{ opacity: 0, x: -30 }}
+          initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
         >
-          <div className={styles.infoCard}>
-            <h2>Get In Touch</h2>
+          <Card variant="surface" elevation={2} padding="lg" className={styles.infoCard}>
+            <CardBody style={{ padding: 0 }}>
+              <h2 className={styles.infoTitle}>Get in touch</h2>
+              <ul className={styles.infoList}>
+                {contactRows.map((row) => (
+                  <li key={row.title} className={styles.infoRow}>
+                    <span className={styles.infoIcon}>{row.icon}</span>
+                    <div>
+                      <p className={styles.infoLabel}>{row.title}</p>
+                      <p className={styles.infoValue}>{row.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
 
-            <div className={styles.infoItem}>
-              <FaEnvelope className={styles.infoIcon} />
-              <div className={styles.infoText}>
-                <h3>Email</h3>
-                <p>support@secureshare.com</p>
+              <div className={styles.socials}>
+                {socials.map((s) => (
+                  <motion.a
+                    key={s.label}
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={s.label}
+                    whileHover={{ y: -2 }}
+                    transition={{ duration: 0.15 }}
+                    className={styles.socialBtn}
+                  >
+                    {s.icon}
+                  </motion.a>
+                ))}
               </div>
-            </div>
-
-            <div className={styles.infoItem}>
-              <FaPhone className={styles.infoIcon} />
-              <div className={styles.infoText}>
-                <h3>Phone</h3>
-                <p>+20 1062 555 816</p>
-              </div>
-            </div>
-
-            <div className={styles.infoItem}>
-              <FaMapMarkerAlt className={styles.infoIcon} />
-              <div className={styles.infoText}>
-                <h3>Address</h3>
-                <p>Delta UNIV</p>
-              </div>
-            </div>
-
-            <div className={styles.infoItem}>
-              <FaClock className={styles.infoIcon} />
-              <div className={styles.infoText}>
-                <h3>Business Hours</h3>
-                <p>Full Time</p>
-              </div>
-            </div>
-
-            <div className={styles.socialLinks}>
-              <a href="#" className={styles.socialLink} aria-label="GitHub">
-                <FaGithub />
-              </a>
-              <a href="#" className={styles.socialLink} aria-label="LinkedIn">
-                <FaLinkedin />
-              </a>
-              <a href="#" className={styles.socialLink} aria-label="Twitter">
-                <FaTwitter />
-              </a>
-              <a href="#" className={styles.socialLink} aria-label="Facebook">
-                <FaFacebook />
-              </a>
-            </div>
-          </div>
+            </CardBody>
+          </Card>
         </motion.div>
 
         <motion.div
-          className={styles.contactForm}
-          initial={{ opacity: 0, x: 30 }}
+          initial={{ opacity: 0, x: 16 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
         >
-          <div className={styles.formCard}>
-            <h2>Send Us a Message</h2>
+          <Card variant="glass" elevation={3} padding="lg">
+            <CardBody style={{ padding: 0 }}>
+              <h2 className={styles.formTitle}>Send us a message</h2>
 
-            {error && (
-              <motion.div className={styles.error} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                {error}
-              </motion.div>
-            )}
+              <form className={styles.form} onSubmit={submit}>
+                <FormField label="Your name" required>
+                  <Input name="name" placeholder="Jane Doe" value={formData.name} onChange={change} leftIcon={<FaUser />} required />
+                </FormField>
 
-            {success && (
-              <motion.div className={styles.success} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-                {success}
-              </motion.div>
-            )}
+                <FormField label="Email" required>
+                  <Input type="email" name="email" placeholder="you@company.com" value={formData.email} onChange={change} leftIcon={<FaEnvelope />} required />
+                </FormField>
 
-            <form className={styles.form} onSubmit={handleSubmit}>
-              <div className={styles.formGroup}>
-                <label htmlFor="name">Your Name</label>
-                <div className={styles.inputGroup}>
-                  <FaUser className={styles.inputIcon} />
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    placeholder="Enter your name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
+                <FormField label="Subject" required>
+                  <Input name="subject" placeholder="What is this about?" value={formData.subject} onChange={change} leftIcon={<FaPaperPlane />} required />
+                </FormField>
 
-              <div className={styles.formGroup}>
-                <label htmlFor="email">Email Address</label>
-                <div className={styles.inputGroup}>
-                  <FaEnvelope className={styles.inputIcon} />
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    placeholder="Enter your email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
+                <FormField label="Your message" required>
+                  <Textarea name="message" placeholder="Tell us what's on your mind…" value={formData.message} onChange={change} rows={5} required />
+                </FormField>
 
-              <div className={styles.formGroup}>
-                <label htmlFor="subject">Subject</label>
-                <div className={styles.inputGroup}>
-                  <FaPaperPlane className={styles.inputIcon} />
-                  <input
-                    type="text"
-                    id="subject"
-                    name="subject"
-                    placeholder="What is this regarding?"
-                    value={formData.subject}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
+                {error && <p className={styles.errorBox}>{error}</p>}
 
-              <div className={styles.formGroup}>
-                <label htmlFor="message">Your Message</label>
-                <div className={styles.inputGroup}>
-                  <textarea
-                    id="message"
-                    name="message"
-                    placeholder="Type your message here..."
-                    value={formData.message}
-                    onChange={handleChange}
-                    required
-                  ></textarea>
-                </div>
-              </div>
-
-              <button type="submit" className={styles.submitButton} disabled={loading}>
-                {loading ? "Sending..." : "Send Message"}
-              </button>
-            </form>
-          </div>
+                <Button type="submit" variant="primary" size="lg" loading={loading} rightIcon={<FaPaperPlane />}>
+                  Send message
+                </Button>
+              </form>
+            </CardBody>
+          </Card>
         </motion.div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Contact
+export default Contact;

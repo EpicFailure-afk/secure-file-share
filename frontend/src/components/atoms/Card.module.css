@@ -1,0 +1,78 @@
+.card {
+  position: relative;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  color: var(--fg-primary);
+  transition:
+    transform var(--dur-base) var(--ease-standard),
+    box-shadow var(--dur-base) var(--ease-standard),
+    border-color var(--dur-base) var(--ease-standard);
+}
+
+.variant_surface { background: var(--bg-surface); }
+
+.variant_elevated {
+  background: var(--bg-elevated);
+}
+
+.variant_glass {
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+}
+
+.variant_outline {
+  background: transparent;
+  border-color: var(--border-strong);
+}
+
+.variant_brand {
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--brand-500) 16%, transparent),
+      color-mix(in srgb, var(--brand-700) 12%, transparent)),
+    var(--bg-surface);
+  border-color: color-mix(in srgb, var(--brand-500) 30%, transparent);
+}
+
+.elev_0 { box-shadow: var(--elev-0); }
+.elev_1 { box-shadow: var(--elev-1); }
+.elev_2 { box-shadow: var(--elev-2); }
+.elev_3 { box-shadow: var(--elev-3); }
+.elev_4 { box-shadow: var(--elev-4); }
+
+.pad_none { padding: 0; }
+.pad_sm   { padding: var(--space-4); }
+.pad_md   { padding: var(--space-6); }
+.pad_lg   { padding: var(--space-7); }
+
+.interactive {
+  cursor: pointer;
+}
+.interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--elev-3);
+  border-color: color-mix(in srgb, var(--brand-500) 30%, transparent);
+}
+.interactive:active {
+  transform: translateY(0);
+  transition-duration: var(--dur-fast);
+}
+.interactive:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.header {
+  padding: var(--space-5) var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.body {
+  padding: var(--space-6);
+}
+.footer {
+  padding: var(--space-5) var(--space-6);
+  border-top: 1px solid var(--border-subtle);
+}

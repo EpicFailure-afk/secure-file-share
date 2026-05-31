@@ -1,0 +1,44 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+
+.left { display: flex; align-items: center; gap: var(--space-4); min-width: 0; }
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--brand-grad);
+  color: #fff;
+  font-size: 20px;
+  box-shadow: var(--elev-brand);
+  flex-shrink: 0;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 4vw, var(--text-3xl));
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-primary);
+}
+
+.subtitle {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  margin-top: 2px;
+}
+
+.actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+
+@media (max-width: 600px) {
+  .actions { width: 100%; }
+}

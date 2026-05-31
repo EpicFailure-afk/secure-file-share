@@ -1047,6 +1047,119 @@ export const verifyUserFileIntegrity = async (fileId) => {
   }
 }
 
+// ==================== FOLDER API ====================
+
+// Get all folders for the current user (flat list)
+export const getFolders = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/folders`, {
+      method: "GET",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Get Folders Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Create a folder
+export const createFolder = async ({ name, parentFolder = null }) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/folders`, {
+      method: "POST",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name, parentFolder }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Create Folder Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Rename or move a folder
+export const updateFolder = async (folderId, updates) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/folders/${folderId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updates),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Update Folder Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Delete a folder and all of its contents (cascade)
+export const deleteFolder = async (folderId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/folders/${folderId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: token,
+      },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Delete Folder Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Move a file into a folder (folderId null = root)
+export const moveFile = async (fileId, folderId) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      return { error: "Unauthorized" }
+    }
+
+    const response = await fetch(`/api/files/${fileId}/move`, {
+      method: "PATCH",
+      headers: {
+        Authorization: token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ folderId }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Move File Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
 // ==================== ORGANIZATION API ====================
 
 // Create organization
