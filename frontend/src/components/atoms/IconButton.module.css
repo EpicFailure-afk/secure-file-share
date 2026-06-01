@@ -28,6 +28,18 @@
   cursor: not-allowed;
 }
 
+/* aria-disabled: looks disabled but stays clickable so callers can surface
+   feedback (e.g. a "file is locked" toast) instead of silently doing nothing. */
+.btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn[aria-disabled="true"]:hover {
+  transform: none;
+  background: transparent;
+  color: var(--fg-secondary);
+}
+
 .size_sm { width: 30px; height: 30px; font-size: 13px; border-radius: var(--radius-sm); }
 .size_md { width: 38px; height: 38px; font-size: 15px; border-radius: var(--radius-md); }
 .size_lg { width: 46px; height: 46px; font-size: 18px; border-radius: var(--radius-md); }

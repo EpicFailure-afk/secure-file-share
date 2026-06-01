@@ -22,6 +22,13 @@ services:
       - "5000:5000"   # expose backend separately here
       networks:
         - app_network
+      volumes:
+        # Persist encrypted uploads across container restarts/rebuilds.
+        # Must match where the backend actually writes files: code is copied to
+        # /app/src, so multer's "../uploads" resolves to /app/src/uploads.
+        # Without this volume the uploads live in the ephemeral container layer
+        # and are wiped on every restart -> integrity check "File not found".
+        - uploads_data:/app/src/uploads
       healthcheck:
         test: ["CMD", "curl", "-f", "http://localhost:5000/"] 
         interval: 10s
@@ -50,3 +57,4 @@ networks:
 
 volumes:
   mongodb_data:
+  uploads_data:

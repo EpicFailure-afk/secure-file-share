@@ -540,6 +540,11 @@ const Dashboard = () => {
     onSetExpiration: openExpiration,
     onVerifyIntegrity: openIntegrity,
     onMove: setMoveTarget,
+    onLockedAttempt: (file) =>
+      toast.warning({
+        title: "File is locked",
+        description: `Unlock "${file.fileName}" first to perform actions on it.`,
+      }),
   };
 
   const folderHandlers = {

@@ -111,8 +111,11 @@ const fileSchema = new mongoose.Schema({
   },
   // Virus scanning fields
   scanStatus: {
+    // "unavailable" = the file was NOT scanned because no working virus scanner
+    // (ClamAV) was present — an honest placeholder so the UI never shows a fake
+    // "clean" result for a file that was never actually scanned.
     type: String,
-    enum: ["pending", "scanning", "clean", "infected", "error"],
+    enum: ["pending", "scanning", "clean", "infected", "error", "unavailable"],
     default: "pending",
   },
   scanDate: {

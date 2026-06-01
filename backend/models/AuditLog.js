@@ -23,6 +23,8 @@ const auditLogSchema = new mongoose.Schema({
       "file_share",
       "file_revoke",
       "file_access",
+      "file_lock",
+      "file_unlock",
       "file_scan",
       "file_integrity_check",
       "admin_action",

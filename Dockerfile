@@ -40,6 +40,12 @@ COPY --chown=nodeapp:nodejs backend/models ./models
 # Install mongoose
 RUN npm install mongoose --save
 
+# Pre-create the uploads dir where multer writes (/app/src/uploads) so the
+# persistent named volume mounts onto a path already owned by the non-root
+# nodeapp user. Otherwise Docker creates a root-owned mount point and uploads
+# fail with EACCES. USER nodeapp is already active, so this is owned correctly.
+RUN mkdir -p /app/src/uploads
+
 EXPOSE 5000
 CMD ["node", "src/server.js"]
 

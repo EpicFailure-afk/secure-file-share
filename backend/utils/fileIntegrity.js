@@ -1,7 +1,33 @@
 const crypto = require("crypto")
 const fs = require("fs")
+const path = require("path")
 const File = require("../models/File")
 const AuditLog = require("../models/AuditLog")
+
+// The directory where encrypted files actually live. Resolved the same way the
+// upload route resolves it (relative to the backend source tree), so it stays
+// correct regardless of the absolute base path of the deployment/container.
+const UPLOADS_DIR = path.join(__dirname, "../uploads")
+
+/**
+ * Resolve the on-disk location of a stored file at CHECK time.
+ *
+ * The DB stores an absolute path captured at upload time. If that exact path no
+ * longer exists (e.g. the deployment's base path changed, or the file was looked
+ * up via a stale absolute reference) we fall back to locating the same file by
+ * name inside the current uploads directory. Returns the resolved path, or null
+ * if the file genuinely cannot be found anywhere.
+ * @param {string} storedPath
+ * @returns {string|null}
+ */
+const resolveExistingPath = (storedPath) => {
+  if (storedPath && fs.existsSync(storedPath)) return storedPath
+  if (storedPath) {
+    const candidate = path.join(UPLOADS_DIR, path.basename(storedPath))
+    if (fs.existsSync(candidate)) return candidate
+  }
+  return null
+}
 
 /**
  * Calculate SHA-256 hash of a file
@@ -35,7 +61,11 @@ const verifyFileIntegrity = async (fileId) => {
       return { verified: false, message: "No hash stored for this file" }
     }
 
-    if (!fs.existsSync(file.filePath)) {
+    // Resolve the file's current location at check time (with a by-name fallback
+    // for stale absolute paths) instead of trusting only the path baked in at
+    // upload time.
+    const resolvedPath = resolveExistingPath(file.filePath)
+    if (!resolvedPath) {
       await File.findByIdAndUpdate(fileId, {
         integrityVerified: false,
         lastIntegrityCheck: new Date(),
@@ -43,7 +73,12 @@ const verifyFileIntegrity = async (fileId) => {
       return { verified: false, message: "File not found on disk" }
     }
 
-    const currentHash = await calculateFileHash(file.filePath)
+    // Self-heal a drifted path so future checks (and downloads) find the file.
+    if (resolvedPath !== file.filePath) {
+      await File.findByIdAndUpdate(fileId, { filePath: resolvedPath })
+    }
+
+    const currentHash = await calculateFileHash(resolvedPath)
     const isVerified = currentHash === file.fileHash
 
     await File.findByIdAndUpdate(fileId, {

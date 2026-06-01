@@ -25,6 +25,7 @@ const SCAN = {
   pending:  { variant: "warning", icon: <FaClock />,                label: "Pending" },
   scanning: { variant: "info",    icon: <FaSync />,                 label: "Scanning" },
   error:    { variant: "warning", icon: <FaExclamationTriangle />,  label: "Error" },
+  unavailable: { variant: "warning", icon: <FaExclamationTriangle />, label: "Not scanned" },
 };
 
 export const ScanBadge = ({ status }) => {

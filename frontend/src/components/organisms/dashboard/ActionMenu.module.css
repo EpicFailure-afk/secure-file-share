@@ -38,3 +38,9 @@
 
 .menu button[data-variant="danger"]:hover { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
 .menu button[data-variant="danger"]:hover svg { color: var(--danger); }
+
+/* Locked-file menu items: greyed out, no hover affordance. They stay clickable
+   so clicking surfaces a "file is locked" toast (handled by the caller). */
+.menu button[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+.menu button[aria-disabled="true"]:hover { background: transparent; color: var(--fg-secondary); }
+.menu button[aria-disabled="true"]:hover svg { color: var(--fg-muted); }

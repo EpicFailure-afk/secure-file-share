@@ -47,6 +47,8 @@ const OrgDashboard = () => {
   const [transferOpen, setTransferOpen] = useState(false);
   const [transferTarget, setTransferTarget] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaveSubmitting, setLeaveSubmitting] = useState(false);
 
   const fetchStats = useCallback(async () => {
     const res = await getOrganizationStats();
@@ -136,11 +138,12 @@ const OrgDashboard = () => {
     setTimeout(() => setCopied(false), 1800);
   };
 
-  const leave = async () => {
-    if (!window.confirm("Leave this organization?")) return;
+  const confirmLeave = async () => {
+    setLeaveSubmitting(true);
     const res = await leaveOrganization();
+    setLeaveSubmitting(false);
     if (res.error) toast.error({ title: "Couldn't leave", description: res.error });
-    else navigate("/dashboard");
+    else { setLeaveOpen(false); navigate("/dashboard"); }
   };
 
   const confirmDelete = async () => {
@@ -220,7 +223,7 @@ const OrgDashboard = () => {
         title={organization?.name}
         subtitle={`${organization?.subscription?.plan || "free"} plan`}
         actions={!isOwner && (
-          <Button variant="ghost" leftIcon={<FaSignOutAlt />} onClick={leave}>Leave organization</Button>
+          <Button variant="ghost" leftIcon={<FaSignOutAlt />} onClick={() => setLeaveOpen(true)}>Leave organization</Button>
         )}
       />
 
@@ -410,6 +413,21 @@ const OrgDashboard = () => {
             ))}
           </select>
         </FormField>
+      </Modal>
+
+      <Modal
+        open={leaveOpen}
+        onClose={() => { if (!leaveSubmitting) setLeaveOpen(false); }}
+        title="Leave organization"
+        description="You'll lose access to this organization's shared files and tools."
+        footer={
+          <>
+            <Button variant="ghost" disabled={leaveSubmitting} onClick={() => setLeaveOpen(false)}>Cancel</Button>
+            <Button variant="danger" loading={leaveSubmitting} leftIcon={<FaSignOutAlt />} onClick={confirmLeave}>Leave organization</Button>
+          </>
+        }
+      >
+        <p>Are you sure you want to leave <strong>{organization?.name}</strong>? You can rejoin later only with a new invite code.</p>
       </Modal>
     </motion.div>
   );

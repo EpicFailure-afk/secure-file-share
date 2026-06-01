@@ -18,6 +18,22 @@ const { logActivity, getActivityDescription } = require("../utils/activityTracke
 
 const router = express.Router()
 
+// When a file is locked, EVERY action on it (download, share, move, delete,
+// integrity check, expiration, revoke, etc.) is denied until it is unlocked via
+// the dedicated /unlock endpoint. This is enforced server-side on every action
+// route so the lock cannot be bypassed by calling the API directly. Returns true
+// (and sends the 403) when the file is locked, so callers can `if (...) return`.
+const denyIfLocked = (file, res) => {
+  if (file && file.isLocked) {
+    res.status(403).json({
+      error: "This file is locked. Unlock it first to perform this action.",
+      isLocked: true,
+    })
+    return true
+  }
+  return false
+}
+
 // Maximum file size (500MB)
 const MAX_FILE_SIZE = 500 * 1024 * 1024
 
@@ -111,9 +127,12 @@ router.post("/upload", authMiddleware, (req, res, next) => {
 
     const originalFilePath = req.file.path
     
-    // Scan the original file BEFORE encryption (if ClamAV is available)
-    let initialScanStatus = "clean"
-    let initialScanResult = "Scan completed"
+    // Scan the original file BEFORE encryption. We ONLY record "clean" when a
+    // real ClamAV scan actually ran and returned clean; if no working scanner is
+    // present (or the scan can't complete) we record an honest "unavailable"
+    // status instead of faking a pass.
+    let initialScanStatus = "unavailable"
+    let initialScanResult = "Not scanned — virus scanner (ClamAV) is not active on this server"
     try {
       const { scanFile, isClamAvAvailable } = require("../utils/virusScanner")
       const clamAvailable = await isClamAvAvailable()
@@ -132,9 +151,10 @@ router.post("/upload", authMiddleware, (req, res, next) => {
       }
     } catch (scanErr) {
       console.error("Pre-encryption scan error:", scanErr)
-      // Continue with upload if scan fails - will be marked as pending
-      initialScanStatus = "pending"
-      initialScanResult = "Scan error - pending review"
+      // Scanner present but the scan could not complete (e.g. no signature DB).
+      // Stay honest — do NOT mark the file clean.
+      initialScanStatus = "unavailable"
+      initialScanResult = `Not scanned — virus scan could not be completed (${scanErr.message})`
     }
 
     // Extract preview metadata (dimensions / thumbnail / page count) from the
@@ -375,6 +395,8 @@ router.post("/:id/pre-scan", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "File not found" })
     }
 
+    if (denyIfLocked(file, res)) return
+
     const ipAddress = req.headers["x-forwarded-for"] || req.connection.remoteAddress
     const scanResult = await scanBeforeDownload(file._id, req.user.userId, ipAddress)
 
@@ -401,6 +423,8 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     if (!file) {
       return res.status(404).json({ error: "File not found" })
     }
+
+    if (denyIfLocked(file, res)) return
 
     // Get user info for logging
     const deleteUser = await User.findById(req.user.userId)
@@ -461,6 +485,8 @@ router.patch("/:id/move", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "File not found" })
     }
 
+    if (denyIfLocked(file, res)) return
+
     let folderId = null
     if (req.body.folderId) {
       const folder = await Folder.findOne({ _id: req.body.folderId, userId: req.user.userId })
@@ -491,6 +517,8 @@ router.get("/:id/verify-integrity", authMiddleware, async (req, res) => {
     if (!file) {
       return res.status(404).json({ error: "File not found" })
     }
+
+    if (denyIfLocked(file, res)) return
 
     const result = await verifyFileIntegrity(file._id)
 
@@ -566,6 +594,8 @@ router.post("/:id/expiration", authMiddleware, async (req, res) => {
     if (!file) {
       return res.status(404).json({ error: "File not found" })
     }
+
+    if (denyIfLocked(file, res)) return
 
     const { value, unit } = req.body // { value: 30, unit: 'minutes' }
     
@@ -741,6 +771,8 @@ router.post("/:id/revoke", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "File not found" })
     }
 
+    if (denyIfLocked(file, res)) return
+
     const { reason } = req.body
     const result = await revokeFile(file._id, req.user.userId, reason)
 
@@ -766,6 +798,8 @@ router.post("/:id/download-limit", authMiddleware, async (req, res) => {
     if (!file) {
       return res.status(404).json({ error: "File not found" })
     }
+
+    if (denyIfLocked(file, res)) return
 
     const { maxDownloads } = req.body
     const result = await setDownloadLimit(file._id, parseInt(maxDownloads))
@@ -994,6 +1028,8 @@ router.get("/share/:token/download", async (req, res) => {
     if (!file) {
       return res.status(400).json({ error: "Invalid or expired verification code" })
     }
+
+    if (denyIfLocked(file, res)) return
 
     // Decrypt the file and get a read stream
     const { stream, cleanup } = await decryptFileToStream(file.filePath)

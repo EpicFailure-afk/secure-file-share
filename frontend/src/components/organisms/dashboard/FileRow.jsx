@@ -40,6 +40,7 @@ const ScanBadge = ({ status }) => {
     pending:  { variant: "warning", icon: <FaClock />,     label: "Pending scan" },
     scanning: { variant: "info",    icon: <FaClock />,     label: "Scanning…" },
     error:    { variant: "warning", icon: <FaExclamationTriangle />, label: "Scan error" },
+    unavailable: { variant: "warning", icon: <FaExclamationTriangle />, label: "Not scanned" },
   };
   const cfg = map[status];
   if (!cfg) return null;
@@ -50,12 +51,17 @@ const ScanBadge = ({ status }) => {
   );
 };
 
-const FileRow = ({ file, downloading, ownerName, onDownload, onShare, onDelete, onLockToggle, onSetExpiration, onVerifyIntegrity, onMove }) => {
+const FileRow = ({ file, downloading, ownerName, onDownload, onShare, onDelete, onLockToggle, onSetExpiration, onVerifyIntegrity, onMove, onLockedAttempt }) => {
   const rowRef = useRef(null);
   const preview = useHoverPreview();
 
   const payload = { kind: "file", file: { ...file, uploadedBy: ownerName } };
 
+  // When the file is locked, every action except Unlock is blocked. Locked
+  // controls are shown greyed (aria-disabled) and, if clicked, surface a toast
+  // explaining the file must be unlocked first instead of running the action.
+  const locked = Boolean(file.isLocked);
+  const blocked = () => onLockedAttempt?.(file);
   const disabledDownload = file.scanStatus === "infected" || Boolean(downloading);
 
   return (
@@ -107,12 +113,21 @@ const FileRow = ({ file, downloading, ownerName, onDownload, onShare, onDelete, 
           aria-label={`Download ${file.fileName}`}
           variant="ghost"
           size="md"
-          disabled={disabledDownload}
-          onClick={() => onDownload(file)}
+          disabled={!locked && disabledDownload}
+          aria-disabled={locked || disabledDownload || undefined}
+          title={locked ? "File is locked — unlock it first" : undefined}
+          onClick={locked ? blocked : () => onDownload(file)}
         >
           {downloading ? <Spinner size="sm" /> : <FaDownload />}
         </IconButton>
-        <IconButton aria-label={`Share ${file.fileName}`} variant="ghost" size="md" onClick={() => onShare(file)}>
+        <IconButton
+          aria-label={`Share ${file.fileName}`}
+          variant="ghost"
+          size="md"
+          aria-disabled={locked || undefined}
+          title={locked ? "File is locked — unlock it first" : undefined}
+          onClick={locked ? blocked : () => onShare(file)}
+        >
           <FaShare />
         </IconButton>
         <IconButton
@@ -123,19 +138,26 @@ const FileRow = ({ file, downloading, ownerName, onDownload, onShare, onDelete, 
         >
           <FaInfoCircle />
         </IconButton>
-        <IconButton aria-label={`Delete ${file.fileName}`} variant="danger" size="md" onClick={() => onDelete(file)}>
+        <IconButton
+          aria-label={`Delete ${file.fileName}`}
+          variant="danger"
+          size="md"
+          aria-disabled={locked || undefined}
+          title={locked ? "File is locked — unlock it first" : undefined}
+          onClick={locked ? blocked : () => onDelete(file)}
+        >
           <FaTrash />
         </IconButton>
         <ActionMenu label={`More actions for ${file.fileName}`}>
           {(close) => (
             <>
-              <button role="menuitem" onClick={() => { close(); onMove?.(file); }}>
+              <button role="menuitem" aria-disabled={locked || undefined} onClick={() => { close(); locked ? blocked() : onMove?.(file); }}>
                 <FaFolderOpen /> Move to…
               </button>
-              <button role="menuitem" onClick={() => { close(); onVerifyIntegrity(file); }}>
+              <button role="menuitem" aria-disabled={locked || undefined} onClick={() => { close(); locked ? blocked() : onVerifyIntegrity(file); }}>
                 <FaShieldAlt /> Verify integrity
               </button>
-              <button role="menuitem" onClick={() => { close(); onSetExpiration(file); }}>
+              <button role="menuitem" aria-disabled={locked || undefined} onClick={() => { close(); locked ? blocked() : onSetExpiration(file); }}>
                 <FaClock /> Set expiration
               </button>
               <button role="menuitem" onClick={() => { close(); onLockToggle(file); }}>

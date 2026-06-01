@@ -22,22 +22,29 @@ const Modal = ({
   const dialogRef = useRef(null);
   const lastActive = useRef(null);
 
+  // Focus + scroll lock run ONLY when the modal opens/closes. Keeping this
+  // effect off `onClose` (an inline arrow that changes every parent render)
+  // prevents it from re-firing — and re-stealing focus from inputs — on every
+  // keystroke while typing inside the modal.
   useEffect(() => {
     if (!open) return;
     lastActive.current = document.activeElement;
     document.body.style.overflow = "hidden";
     dialogRef.current?.focus();
 
+    return () => {
+      document.body.style.overflow = "";
+      if (lastActive.current && lastActive.current.focus) lastActive.current.focus();
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const onKey = (e) => {
       if (e.key === "Escape" && closeOnEsc) onClose?.();
     };
     window.addEventListener("keydown", onKey);
-
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", onKey);
-      if (lastActive.current && lastActive.current.focus) lastActive.current.focus();
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open, closeOnEsc, onClose]);
 
   const node = (
