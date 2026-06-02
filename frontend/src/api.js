@@ -163,7 +163,7 @@ export const getUserFiles = async () => {
   }
 }
 
-export const uploadFile = async (formData, progressCallback) => {
+export const uploadFile = async (formData, progressCallback, onScanning) => {
   try {
     const token = localStorage.getItem("token")
     if (!token) {
@@ -180,35 +180,47 @@ export const uploadFile = async (formData, progressCallback) => {
         }
       })
 
+      // Once all bytes are sent the server begins scanning + encrypting before it
+      // responds. Signal that transition so the UI can show a "scanning" state
+      // instead of sitting frozen at 100%.
+      xhr.upload.addEventListener("load", () => {
+        if (typeof onScanning === "function") onScanning()
+      })
+
       xhr.addEventListener("load", () => {
         try {
           const response = JSON.parse(xhr.responseText)
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(response)
           } else {
-            resolve({ error: response.error || `Upload failed with status ${xhr.status}` })
+            // A parseable error body is a real, intentional rejection from the
+            // backend (e.g. infected file, too large) — NOT a network glitch.
+            resolve({ error: response.error || `Upload failed with status ${xhr.status}`, status: xhr.status })
           }
         } catch {
-          resolve({ error: "Failed to parse server response" })
+          // Non-JSON body (e.g. an nginx 504 HTML page when the scan outran the
+          // proxy timeout). The upload may actually have succeeded server-side,
+          // so flag it as a network error for the caller to verify.
+          resolve({ error: "Failed to parse server response", networkError: true, status: xhr.status })
         }
       })
 
       xhr.addEventListener("error", () => {
-        resolve({ error: "Network error during upload" })
+        resolve({ error: "Network error during upload", networkError: true })
       })
 
       xhr.addEventListener("timeout", () => {
-        resolve({ error: "Upload timed out" })
+        resolve({ error: "Upload timed out", networkError: true })
       })
 
       xhr.open("POST", `/api/files/upload`)
       xhr.setRequestHeader("Authorization", token)
-      xhr.timeout = 300000 // 5 minute timeout for large files
+      xhr.timeout = 600000 // 10 min — covers large files + ClamAV scan time
       xhr.send(formData)
     })
   } catch (error) {
     console.error("Upload File Error:", error)
-    return { error: "Network error. Please try again." }
+    return { error: "Network error. Please try again.", networkError: true }
   }
 }
 

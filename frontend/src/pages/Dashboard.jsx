@@ -43,6 +43,7 @@ const Dashboard = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadFileName, setUploadFileName] = useState("");
+  const [uploadPhase, setUploadPhase] = useState("uploading"); // "uploading" | "scanning"
   const [downloadingId, setDownloadingId] = useState(null);
 
   // Modal state
@@ -209,7 +210,22 @@ const Dashboard = () => {
     const formData = new FormData();
     formData.append("file", file);
     if (folderId) formData.append("folderId", folderId);
-    return uploadFile(formData, setUploadProgress);
+    return uploadFile(formData, setUploadProgress, () => setUploadPhase("scanning"));
+  };
+
+  // For uploads that hit a network-class error, re-query the server and report
+  // which files actually landed (matched by name + size + a recent upload time),
+  // so a dropped connection after a successful save is never shown as a failure.
+  const reconcileUncertain = async (files) => {
+    if (!files.length) return [];
+    const list = (await getUserFiles().catch(() => ({})))?.files || [];
+    const cutoff = Date.now() - 5 * 60 * 1000;
+    return files.map((file) => {
+      const hit = list.find(
+        (f) => f.fileName === file.name && f.fileSize === file.size && new Date(f.uploadDate).getTime() >= cutoff,
+      );
+      return { name: file.name, found: Boolean(hit), scanStatus: hit?.scanStatus };
+    });
   };
 
   const handleUpload = async (selected, { folder = false } = {}) => {
@@ -226,6 +242,7 @@ const Dashboard = () => {
     }
 
     setUploading(true);
+    setUploadPhase("uploading");
     setUploadProgress(0);
 
     try {
@@ -233,14 +250,46 @@ const Dashboard = () => {
         await uploadFolderTree(fileArr);
       } else {
         let ok = 0;
+        let cleanCount = 0;
+        const uncertain = [];
         for (const file of fileArr) {
           setUploadFileName(file.name);
+          setUploadPhase("uploading");
           setUploadProgress(0);
           const res = await uploadOne(file, currentFolderId);
-          if (res.error) toast.error({ title: `Failed: ${file.name}`, description: res.error });
-          else ok += 1;
+          if (res.error) {
+            if (res.networkError) {
+              uncertain.push(file); // verify against the server before failing
+            } else {
+              const blocked = Boolean(res.scanResult) || /malware|infected|rejected/i.test(res.error);
+              toast.error({
+                title: blocked ? "Blocked by security scan" : `Failed: ${file.name}`,
+                description: blocked
+                  ? `"${file.name}" was blocked${res.scanResult ? ` — threat: ${res.scanResult}` : ""}.`
+                  : res.error,
+              });
+            }
+          } else {
+            ok += 1;
+            if (res.file?.scanStatus === "clean") cleanCount += 1;
+          }
         }
-        if (ok) toast.success({ title: ok === 1 ? "File uploaded" : `${ok} files uploaded`, description: "Scanning in progress." });
+        // A network error/timeout (e.g. proxy 504 while the scan ran long) does
+        // NOT mean the upload failed — the backend may have saved the file after
+        // the connection dropped. Confirm against the server so we never report
+        // failure for a file that actually exists.
+        for (const file of await reconcileUncertain(uncertain)) {
+          if (file.found) { ok += 1; if (file.scanStatus === "clean") cleanCount += 1; }
+          else toast.error({ title: `Upload failed: ${file.name}`, description: "The file couldn't be uploaded. Please try again." });
+        }
+        if (ok) {
+          toast.success({
+            title: ok === 1 ? "File uploaded" : `${ok} files uploaded`,
+            description: cleanCount === ok
+              ? "Security scan passed — no threats found."
+              : "Uploaded. Note: the virus scanner isn't active, so the file wasn't scanned.",
+          });
+        }
       }
       await Promise.all([fetchFiles(), fetchFolders()]);
     } catch (err) {
@@ -248,6 +297,7 @@ const Dashboard = () => {
       toast.error({ title: "Upload failed", description: "Please try again." });
     } finally {
       setUploading(false);
+      setUploadPhase("uploading");
       setUploadProgress(0);
       setUploadFileName("");
     }
@@ -270,16 +320,33 @@ const Dashboard = () => {
     };
 
     let ok = 0;
+    const uncertain = [];
     for (const file of fileArr) {
       const rel = file.webkitRelativePath || file.name;
       const parts = rel.split("/");
       const dir = parts.slice(0, -1).join("/");
       setUploadFileName(parts[parts.length - 1]);
+      setUploadPhase("uploading");
       setUploadProgress(0);
       const folderId = await ensureFolder(dir);
       const res = await uploadOne(file, folderId);
-      if (res.error) toast.error({ title: `Failed: ${file.name}`, description: res.error });
-      else ok += 1;
+      if (res.error) {
+        if (res.networkError) {
+          uncertain.push(file);
+        } else {
+          const blocked = Boolean(res.scanResult) || /malware|infected|rejected/i.test(res.error);
+          toast.error({
+            title: blocked ? "Blocked by security scan" : `Failed: ${file.name}`,
+            description: blocked
+              ? `"${file.name}" was blocked${res.scanResult ? ` — threat: ${res.scanResult}` : ""}.`
+              : res.error,
+          });
+        }
+      } else ok += 1;
+    }
+    for (const file of await reconcileUncertain(uncertain)) {
+      if (file.found) ok += 1;
+      else toast.error({ title: `Upload failed: ${file.name}`, description: "The file couldn't be uploaded. Please try again." });
     }
     if (ok) toast.success({ title: "Folder uploaded", description: `${ok} ${ok === 1 ? "file" : "files"} added, structure preserved.` });
   };
@@ -561,7 +628,7 @@ const Dashboard = () => {
 
         <OrgSection organization={organization} role={user?.role} onOpenOrgModal={openOrg} />
 
-        <UploadProgress visible={uploading} progress={uploadProgress} fileName={uploadFileName} />
+        <UploadProgress visible={uploading} progress={uploadProgress} fileName={uploadFileName} phase={uploadPhase} />
 
         <div className={styles.toolbar}>
           <Breadcrumbs trail={trail} onNavigate={setCurrentFolderId} onDropFile={handleDropMove} />
