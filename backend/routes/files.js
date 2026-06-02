@@ -259,9 +259,14 @@ router.post("/upload", authMiddleware, (req, res, next) => {
         uploadDate: newFile.uploadDate,
         expiresAt: newFile.expiresAt,
         scanStatus: newFile.scanStatus,
+        scanResult: newFile.scanResult,
         integrityVerified: newFile.integrityVerified,
         encryptionAlgorithm: algorithm,
       },
+      // Explicit scan outcome so the frontend can show the correct result.
+      // scanStatus: "clean" (passed), "unavailable" (scanner not active).
+      // Infected files never reach here — they're rejected with HTTP 400 above.
+      scanned: newFile.scanStatus === "clean",
       message: "File uploaded successfully",
     })
   } catch (err) {
