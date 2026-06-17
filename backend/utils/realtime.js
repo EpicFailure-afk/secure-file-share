@@ -32,7 +32,8 @@ function initRealtime(httpServer) {
     },
   })
 
-  // Handshake authentication + admin authorization.
+  // Handshake authentication + authorization. The live security feed is the
+  // superadmin's cross-organization view, so ONLY superadmins may subscribe.
   io.use(async (socket, next) => {
     try {
       const token = parseToken(
@@ -42,7 +43,7 @@ function initRealtime(httpServer) {
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET)
       const user = await User.findById(decoded.userId).select("role isActive").lean()
-      if (!user || user.isActive === false || !["admin", "superadmin"].includes(user.role)) {
+      if (!user || user.isActive === false || user.role !== "superadmin") {
         return next(new Error("forbidden"))
       }
 

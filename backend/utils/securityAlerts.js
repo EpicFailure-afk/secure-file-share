@@ -29,7 +29,7 @@ function emitRealtime(event) {
 async function emailAdmins(subject, body) {
   try {
     const admins = await User.find({
-      role: { $in: ["admin", "superadmin"] },
+      role: "superadmin",
       isActive: true,
     })
       .select("email")

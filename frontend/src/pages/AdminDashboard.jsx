@@ -126,7 +126,7 @@ const AdminDashboard = () => {
     if (!token) { navigate("/login"); return; }
     (async () => {
       const profile = await getUserProfile();
-      if (profile.error || profile.user?.role !== "admin") { navigate("/dashboard"); return; }
+      if (profile.error || profile.user?.role !== "superadmin") { navigate("/dashboard"); return; }
       fetchDashboard();
     })();
   }, [navigate, fetchDashboard]);
@@ -157,8 +157,8 @@ const AdminDashboard = () => {
     const map = {
       deactivate: () => deactivateUser(userId),
       activate:   () => activateUser(userId),
-      makeAdmin:  () => updateUserRole(userId, "admin"),
-      removeAdmin:() => updateUserRole(userId, "user"),
+      makeSuperadmin:   () => window.confirm("Grant SUPERADMIN — full platform security authority — to this user?") ? updateUserRole(userId, "superadmin") : null,
+      removeSuperadmin: () => updateUserRole(userId, "staff"),
       delete:     () => window.confirm("Delete this user and all their files?") ? deleteUser(userId) : null,
     };
     runAction(userId, map[action], "Done", fetchUsers);
@@ -166,7 +166,7 @@ const AdminDashboard = () => {
 
   const fileAction = (fileId, action) => {
     const map = {
-      revoke:     () => adminRevokeFile(fileId, "Revoked by admin"),
+      revoke:     () => adminRevokeFile(fileId, "Revoked by superadmin"),
       restore:    () => adminRestoreFile(fileId),
       delete:     () => window.confirm("Delete this file?") ? adminDeleteFile(fileId) : null,
       scan:       () => scanFile(fileId),
@@ -194,7 +194,7 @@ const AdminDashboard = () => {
   const userColumns = [
     { key: "username", header: "Username", render: (u) => <strong style={{ color: "var(--fg-primary)" }}>{u.username}</strong> },
     { key: "email", header: "Email" },
-    { key: "role", header: "Role", render: (u) => <Badge variant={u.role === "admin" ? "danger" : "neutral"} size="sm">{u.role}</Badge> },
+    { key: "role", header: "Role", render: (u) => <Badge variant={u.role === "superadmin" ? "danger" : "neutral"} size="sm">{u.role}</Badge> },
     { key: "status", header: "Status", render: (u) => <Badge variant={u.isActive ? "success" : "neutral"} size="sm" dot>{u.isActive ? "Active" : "Inactive"}</Badge> },
     { key: "fileCount", header: "Files", align: "right" },
     { key: "storageUsed", header: "Storage", align: "right", render: (u) => formatBytes(u.storageUsed) },
@@ -205,9 +205,9 @@ const AdminDashboard = () => {
           {u.isActive
             ? <IconButton aria-label="Deactivate" variant="ghost" size="sm" disabled={actionLoading === u._id} onClick={() => userAction(u._id, "deactivate")}><FaUserSlash /></IconButton>
             : <IconButton aria-label="Activate" variant="ghost" size="sm" disabled={actionLoading === u._id} onClick={() => userAction(u._id, "activate")}><FaCheckCircle /></IconButton>}
-          {u.role !== "admin"
-            ? <IconButton aria-label="Make admin" variant="ghost" size="sm" disabled={actionLoading === u._id} onClick={() => userAction(u._id, "makeAdmin")}><FaUserShield /></IconButton>
-            : <IconButton aria-label="Remove admin" variant="ghost" size="sm" disabled={actionLoading === u._id} onClick={() => userAction(u._id, "removeAdmin")}><FaUsers /></IconButton>}
+          {u.role !== "superadmin"
+            ? <IconButton aria-label="Grant superadmin" variant="ghost" size="sm" disabled={actionLoading === u._id} onClick={() => userAction(u._id, "makeSuperadmin")}><FaUserShield /></IconButton>
+            : <IconButton aria-label="Revoke superadmin" variant="ghost" size="sm" disabled={actionLoading === u._id} onClick={() => userAction(u._id, "removeSuperadmin")}><FaUsers /></IconButton>}
           <IconButton aria-label="Delete" variant="danger" size="sm" disabled={actionLoading === u._id} onClick={() => userAction(u._id, "delete")}><FaTrash /></IconButton>
         </div>
       ),
@@ -248,7 +248,7 @@ const AdminDashboard = () => {
   /* --------------------------------- render --------------------------------- */
   return (
     <motion.div className={styles.page} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <PageHeader icon={<FaUserShield />} title="Admin Dashboard" subtitle="Manage users, files, and platform health" />
+      <PageHeader icon={<FaUserShield />} title="Security Command Center" subtitle="Superadmin · platform-wide authority across all organizations and users" />
 
       <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
 

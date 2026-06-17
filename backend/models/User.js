@@ -16,7 +16,10 @@ const userSchema = new mongoose.Schema(
     // Role within organization
     role: { 
       type: String, 
-      enum: ["staff", "manager", "admin", "owner", "superadmin"], 
+      // Org-scoped roles: staff < manager < owner. "superadmin" is the single
+      // platform-level security authority (cross-organization). The old org
+      // "admin" role was removed; its member-management duties moved to manager.
+      enum: ["staff", "manager", "owner", "superadmin"],
       default: "staff" 
     },
     
@@ -116,24 +119,15 @@ userSchema.pre("save", function (next) {
           canManageSettings: true,
         };
         break;
-      case "admin":
+      case "manager":
+        // Manager now inherits the org-admin's member-management duty
+        // (canManageUsers) since the org "admin" role was removed.
         this.permissions = {
           canUpload: true,
           canDownload: true,
           canShare: true,
           canDelete: true,
           canManageUsers: true,
-          canViewAuditLogs: true,
-          canManageSettings: false,
-        };
-        break;
-      case "manager":
-        this.permissions = {
-          canUpload: true,
-          canDownload: true,
-          canShare: true,
-          canDelete: true,
-          canManageUsers: false,
           canViewAuditLogs: true,
           canManageSettings: false,
         };

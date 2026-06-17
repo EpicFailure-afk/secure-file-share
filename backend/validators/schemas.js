@@ -125,7 +125,7 @@ const folders = {
 
 // ---- Organization -----------------------------------------------------------
 
-const orgRole = z.enum(["staff", "manager", "admin"])
+const orgRole = z.enum(["staff", "manager"])
 
 const organization = {
   create: z.object({
@@ -166,7 +166,7 @@ const user = {
 // ---- Admin ------------------------------------------------------------------
 
 const admin = {
-  changeRole: z.object({ role: z.enum(["staff", "manager", "admin", "owner", "superadmin"]) }),
+  changeRole: z.object({ role: z.enum(["staff", "manager", "owner", "superadmin"]) }),
   setStorage: z.object({ storageLimit: z.coerce.number().int().nonnegative() }),
   revoke: z.object({ reason: shortText(500).optional() }).partial(),
   setExpiration: z.object({

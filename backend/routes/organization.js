@@ -21,7 +21,7 @@ const managerMiddleware = async (req, res, next) => {
     if (!user || !user.organization) {
       return res.status(403).json({ error: "You are not part of any organization" })
     }
-    if (!["manager", "admin", "owner", "superadmin"].includes(user.role)) {
+    if (!["manager", "owner", "superadmin"].includes(user.role)) {
       return res.status(403).json({ error: "Manager access required" })
     }
     req.userOrg = user.organization
@@ -252,7 +252,7 @@ router.get("/members", auth, async (req, res) => {
     }
 
     // Check permissions - managers can view members too
-    if (!["manager", "admin", "owner", "superadmin"].includes(user.role) && !user.permissions.canManageUsers) {
+    if (!["manager", "owner", "superadmin"].includes(user.role) && !user.permissions.canManageUsers) {
       return res.status(403).json({ error: "Permission denied" })
     }
 
@@ -301,7 +301,7 @@ router.post("/members/:memberId/approve", auth, validate({ body: orgSchemas.appr
       return res.status(400).json({ error: "You are not part of any organization" })
     }
 
-    if (!["admin", "owner", "superadmin"].includes(adminUser.role)) {
+    if (!["manager", "owner", "superadmin"].includes(adminUser.role)) {
       return res.status(403).json({ error: "Permission denied" })
     }
 
@@ -367,7 +367,7 @@ router.put("/members/:memberId/role", auth, validate({ body: orgSchemas.changeRo
 
     // This route only assigns org-scoped roles. "owner" can only change via
     // the transfer-ownership route, and "superadmin" is platform-level.
-    if (!["staff", "manager", "admin"].includes(role)) {
+    if (!["staff", "manager"].includes(role)) {
       return res.status(400).json({ error: "Invalid role" })
     }
 
@@ -383,11 +383,7 @@ router.put("/members/:memberId/role", auth, validate({ body: orgSchemas.changeRo
     const organization = await Organization.findById(adminUser.organization)
     const isOwner = organization.owner.toString() === adminUser._id.toString()
 
-    if (!isOwner && role === "admin") {
-      return res.status(403).json({ error: "Only organization owner can assign admin role" })
-    }
-
-    if (!isOwner && !["manager", "admin", "owner", "superadmin"].includes(adminUser.role)) {
+    if (!isOwner && !["manager", "owner", "superadmin"].includes(adminUser.role)) {
       return res.status(403).json({ error: "Permission denied" })
     }
 
@@ -443,7 +439,7 @@ router.delete("/members/:memberId", auth, async (req, res) => {
       return res.status(400).json({ error: "You are not part of any organization" })
     }
 
-    if (!["admin", "owner", "superadmin"].includes(adminUser.role)) {
+    if (!["manager", "owner", "superadmin"].includes(adminUser.role)) {
       return res.status(403).json({ error: "Permission denied" })
     }
 
@@ -504,7 +500,7 @@ router.post("/invite-code/regenerate", auth, validate({ body: orgSchemas.regener
       return res.status(400).json({ error: "You are not part of any organization" })
     }
 
-    if (!["admin", "owner", "superadmin"].includes(user.role)) {
+    if (!["manager", "owner", "superadmin"].includes(user.role)) {
       return res.status(403).json({ error: "Permission denied" })
     }
 
@@ -578,7 +574,7 @@ router.get("/stats", auth, async (req, res) => {
       return res.status(400).json({ error: "You are not part of any organization" })
     }
 
-    if (!["admin", "owner", "manager", "superadmin"].includes(user.role)) {
+    if (!["manager", "owner", "superadmin"].includes(user.role)) {
       return res.status(403).json({ error: "Permission denied" })
     }
 
@@ -677,8 +673,9 @@ router.post("/transfer-ownership", auth, validate({ body: orgSchemas.transferOwn
     organization.owner = newOwnerId
     await organization.save()
 
-    // Update roles
-    user.role = "admin"
+    // Update roles. The outgoing owner steps down to manager (the highest
+    // org-scoped role below owner now that the org "admin" role is gone).
+    user.role = "manager"
     await user.save()
 
     newOwner.role = "owner"
@@ -1574,7 +1571,7 @@ router.post("/monitor/reset-sessions", auth, async (req, res) => {
       return res.status(400).json({ error: "You are not part of any organization" })
     }
     
-    if (!["admin", "owner", "superadmin"].includes(user.role)) {
+    if (!["manager", "owner", "superadmin"].includes(user.role)) {
       return res.status(403).json({ error: "Admin access required" })
     }
     

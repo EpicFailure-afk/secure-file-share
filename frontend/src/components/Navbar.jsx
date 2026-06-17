@@ -10,7 +10,6 @@ import LogoMark from "./LogoMark";
 const ROLE_LABELS = {
   staff: "Staff",
   manager: "Manager",
-  admin: "Admin",
   owner: "Owner",
   superadmin: "Super Admin",
 };
@@ -24,9 +23,9 @@ const Navbar = () => {
 
   const username = user?.username || "";
   const userRole = user?.role || "";
-  const isAdmin = user?.role === "superadmin";
+  const isSuperadmin = user?.role === "superadmin";
   const isOrgMember = Boolean(user?.organization);
-  const canAccessOrgDashboard = isOrgMember && ["admin", "owner", "manager"].includes(user?.role);
+  const canAccessOrgDashboard = isOrgMember && ["owner", "manager"].includes(user?.role);
 
   useEffect(() => {
     const handleResize = () => {
@@ -56,7 +55,24 @@ const Navbar = () => {
           {username && (
             <div className={mobile ? styles.userInfoMobile : styles.userInfo}>
               <span className={styles.userName}>{username}</span>
-              {isOrgMember && <span className={styles.userRole}>({ROLE_LABELS[userRole] || userRole})</span>}
+              {isSuperadmin ? (
+                <span
+                  className={styles.userRole}
+                  style={{
+                    color: "#fff",
+                    background: "linear-gradient(90deg,#ff8a00,#e52e71)",
+                    padding: "1px 8px",
+                    borderRadius: 999,
+                    fontWeight: 700,
+                    fontSize: "0.7rem",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  SUPERADMIN
+                </span>
+              ) : (
+                isOrgMember && <span className={styles.userRole}>({ROLE_LABELS[userRole] || userRole})</span>
+              )}
             </div>
           )}
           <Link to="/dashboard" className={location.pathname === "/dashboard" ? styles.active : ""}>Dashboard</Link>
@@ -70,9 +86,9 @@ const Navbar = () => {
               <FaChartLine /> Monitoring
             </Link>
           )}
-          {isAdmin && (
+          {isSuperadmin && (
             <Link to="/admin" className={`${location.pathname === "/admin" ? styles.active : ""} ${styles.adminLink}`}>
-              <FaUserShield /> Admin
+              <FaUserShield /> Security
             </Link>
           )}
           <button className={styles.logoutBtn} onClick={logout}>

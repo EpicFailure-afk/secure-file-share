@@ -77,7 +77,7 @@ const ManagerDashboard = () => {
     (async () => {
       const profile = await getUserProfile();
       if (!profile.user) { navigate("/login"); return; }
-      if (!["manager", "admin", "owner", "superadmin"].includes(profile.user.role) || !profile.user.organization) {
+      if (!["manager", "owner", "superadmin"].includes(profile.user.role) || !profile.user.organization) {
         navigate("/dashboard"); return;
       }
       setLoading(true);

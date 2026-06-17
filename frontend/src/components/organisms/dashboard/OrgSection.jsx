@@ -6,7 +6,7 @@ import styles from "./OrgSection.module.css";
 
 const OrgSection = ({ organization, role, onOpenOrgModal }) => {
   if (organization) {
-    const canManage = ["admin", "owner", "manager"].includes(role);
+    const canManage = ["owner", "manager"].includes(role);
     return (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
         <Card variant="surface" elevation={1} padding="md" className={styles.orgCard}>

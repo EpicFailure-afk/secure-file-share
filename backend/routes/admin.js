@@ -15,12 +15,15 @@ const { admin: adminSchemas, idParam } = require("../validators/schemas")
 
 const router = express.Router()
 
-// Admin middleware - allows superadmin role for system-wide admin
-const adminMiddleware = async (req, res, next) => {
+// Superadmin middleware — these are the platform security-core routes. ONLY the
+// superadmin role may access them, and the check runs on EVERY request (no other
+// role can reach these endpoints under any circumstance). The org "admin" role
+// was removed; org-scoped management lives under /api/organization instead.
+const superadminMiddleware = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.userId)
-    if (!user || !["admin", "superadmin"].includes(user.role)) {
-      return res.status(403).json({ message: "Access denied. Admin privileges required." })
+    if (!user || user.isActive === false || user.role !== "superadmin") {
+      return res.status(403).json({ message: "Access denied. Superadmin privileges required." })
     }
     req.adminUser = user
     next()
@@ -29,9 +32,9 @@ const adminMiddleware = async (req, res, next) => {
   }
 }
 
-// Apply auth and admin middleware to all routes
+// Apply auth and superadmin middleware to all routes
 router.use(authMiddleware)
-router.use(adminMiddleware)
+router.use(superadminMiddleware)
 
 // ============== DASHBOARD STATS ==============
 
@@ -171,8 +174,11 @@ router.get("/users/:id", async (req, res) => {
 router.put("/users/:id/role", validate({ params: idParam, body: adminSchemas.changeRole }), async (req, res) => {
   try {
     const { role } = req.body
-    // Validate against the real role enum (matches the User model)
-    if (!["staff", "manager", "admin", "owner", "superadmin"].includes(role)) {
+    // Validate against the real role enum (matches the User model). The org
+    // "admin" role no longer exists. Assigning "superadmin" is allowed here only
+    // because this whole router is superadmin-gated (a superadmin promoting
+    // another superadmin) — no lower role can ever reach this code path.
+    if (!["staff", "manager", "owner", "superadmin"].includes(role)) {
       return res.status(400).json({ error: "Invalid role" })
     }
 

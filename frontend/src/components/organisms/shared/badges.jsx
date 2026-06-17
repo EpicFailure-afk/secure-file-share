@@ -7,7 +7,6 @@ import { Badge } from "../../atoms";
 const ROLE_VARIANT = {
   owner: "warning",
   superadmin: "danger",
-  admin: "danger",
   manager: "info",
   staff: "success",
 };

@@ -81,7 +81,7 @@ const OrgDashboard = () => {
       setUserProfile(profileRes.user);
       if (orgRes.error || !orgRes.organization) { navigate("/dashboard"); return; }
       setOrganization(orgRes.organization);
-      if (!["admin", "owner", "manager", "superadmin"].includes(profileRes.user.role)) { navigate("/dashboard"); return; }
+      if (!["manager", "owner", "superadmin"].includes(profileRes.user.role)) { navigate("/dashboard"); return; }
       await fetchStats();
       await fetchPending();
       setLoading(false);
@@ -96,7 +96,7 @@ const OrgDashboard = () => {
   }, [activeTab]);
 
   const isOwner = organization?.owner?._id === userProfile?._id || organization?.owner === userProfile?._id;
-  const canManage = ["admin", "owner"].includes(userProfile?.role);
+  const canManage = ["owner", "manager"].includes(userProfile?.role);
 
   /* -------------------------------- actions -------------------------------- */
   const approve = async (memberId, action) => {
@@ -172,7 +172,7 @@ const OrgDashboard = () => {
   const TABS = [
     { id: "overview", label: "Overview", icon: <FaChartBar /> },
     { id: "members",  label: "Members",  icon: <FaUsers /> },
-    ...(["admin", "owner", "superadmin"].includes(userProfile?.role)
+    ...(["manager", "owner", "superadmin"].includes(userProfile?.role)
       ? [{ id: "pending", label: "Pending", icon: <FaUserPlus />, count: pendingMembers.length }] : []),
     ...(isOwner ? [{ id: "settings", label: "Settings", icon: <FaCog /> }] : []),
   ];
@@ -201,7 +201,6 @@ const OrgDashboard = () => {
             <select className={styles.miniSelect} value={m.role} disabled={actionLoading === m._id} onChange={(e) => changeRole(m._id, e.target.value)}>
               <option value="staff">Staff</option>
               <option value="manager">Manager</option>
-              {isOwner && <option value="admin">Admin</option>}
             </select>
           )}
           {canManage && (
@@ -239,7 +238,7 @@ const OrgDashboard = () => {
             <div className={styles.inviteCodeRow}>
               <code className={styles.code}>{organization?.inviteCode || "N/A"}</code>
               <IconButton aria-label="Copy invite code" variant="glass" size="sm" onClick={copyCode}>{copied ? <FaCheck /> : <FaCopy />}</IconButton>
-              {["admin", "owner"].includes(userProfile?.role) && (
+              {["owner", "manager"].includes(userProfile?.role) && (
                 <IconButton aria-label="Regenerate invite code" variant="glass" size="sm" disabled={actionLoading === "invite"} onClick={regenerate}><FaSync /></IconButton>
               )}
             </div>
@@ -287,7 +286,6 @@ const OrgDashboard = () => {
               <select className={styles.select} value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
                 <option value="">All roles</option>
                 <option value="owner">Owner</option>
-                <option value="admin">Admin</option>
                 <option value="manager">Manager</option>
                 <option value="staff">Staff</option>
               </select>
