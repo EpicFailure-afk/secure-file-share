@@ -8,6 +8,10 @@ const SystemSettings = require("../models/SystemSettings")
 const { verifyFileIntegrity, runSystemIntegrityCheck } = require("../utils/fileIntegrity")
 const { scanAndUpdateFile, scanPendingFiles, quarantineFile, isClamAvAvailable } = require("../utils/virusScanner")
 const { revokeFile, restoreFile, cleanupExpiredFiles, getFilesExpiringSoon, setFileExpiration } = require("../utils/fileExpiration")
+const blobStorage = require("../utils/storage")
+const { getRetentionPolicy } = require("../utils/retention")
+const { validate } = require("../middleware/validate")
+const { admin: adminSchemas, idParam } = require("../validators/schemas")
 
 const router = express.Router()
 
@@ -164,22 +168,28 @@ router.get("/users/:id", async (req, res) => {
 })
 
 // Update user role
-router.put("/users/:id/role", async (req, res) => {
+router.put("/users/:id/role", validate({ params: idParam, body: adminSchemas.changeRole }), async (req, res) => {
   try {
     const { role } = req.body
-    if (!["user", "admin"].includes(role)) {
+    // Validate against the real role enum (matches the User model)
+    if (!["staff", "manager", "admin", "owner", "superadmin"].includes(role)) {
       return res.status(400).json({ error: "Invalid role" })
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { role },
-      { new: true }
-    ).select("-password")
+    // Load + save (NOT findByIdAndUpdate) so the User pre-save hook runs and
+    // re-syncs the granular permissions to match the new role. Updating via
+    // findByIdAndUpdate skips the hook, leaving stale permissions behind.
+    const userDoc = await User.findById(req.params.id)
 
-    if (!user) {
+    if (!userDoc) {
       return res.status(404).json({ error: "User not found" })
     }
+
+    userDoc.role = role
+    await userDoc.save()
+
+    const user = userDoc.toObject()
+    delete user.password
 
     await new AuditLog({
       userId: req.user.userId,
@@ -254,7 +264,7 @@ router.put("/users/:id/activate", async (req, res) => {
 })
 
 // Update user storage limit
-router.put("/users/:id/storage-limit", async (req, res) => {
+router.put("/users/:id/storage-limit", validate({ params: idParam, body: adminSchemas.setStorage }), async (req, res) => {
   try {
     const { storageLimit } = req.body // in bytes
     
@@ -283,12 +293,10 @@ router.delete("/users/:id", async (req, res) => {
       return res.status(404).json({ error: "User not found" })
     }
 
-    // Delete all user files
+    // Delete all user files (encrypted blobs via the storage layer)
     const userFiles = await File.find({ userId: req.params.id })
     for (const file of userFiles) {
-      if (fs.existsSync(file.filePath)) {
-        fs.unlinkSync(file.filePath)
-      }
+      await blobStorage.remove(file.filePath)
     }
     await File.deleteMany({ userId: req.params.id })
 
@@ -371,7 +379,7 @@ router.get("/files/:id", async (req, res) => {
 })
 
 // Revoke file
-router.post("/files/:id/revoke", async (req, res) => {
+router.post("/files/:id/revoke", validate({ params: idParam, body: adminSchemas.revoke }), async (req, res) => {
   try {
     const { reason } = req.body
     const result = await revokeFile(req.params.id, req.user.userId, reason)
@@ -404,7 +412,7 @@ router.post("/files/:id/restore", async (req, res) => {
 })
 
 // Set file expiration
-router.post("/files/:id/expiration", async (req, res) => {
+router.post("/files/:id/expiration", validate({ params: idParam, body: adminSchemas.setExpiration }), async (req, res) => {
   try {
     const { expiresAt } = req.body
     const result = await setFileExpiration(req.params.id, expiresAt)
@@ -420,18 +428,51 @@ router.post("/files/:id/expiration", async (req, res) => {
   }
 })
 
+// Mark / unmark a file as a honey file (decoy). Any subsequent access to a
+// honey file raises a loud, real-time, emailed security alert — a high-signal
+// intrusion indicator. Admin-only.
+router.post("/files/:id/honey", validate({ params: idParam }), async (req, res) => {
+  try {
+    const isHoneyFile = req.body.isHoneyFile !== false // default true
+    const file = await File.findByIdAndUpdate(
+      req.params.id,
+      { isHoneyFile },
+      { new: true },
+    ).select("fileName isHoneyFile")
+
+    if (!file) {
+      return res.status(404).json({ error: "File not found" })
+    }
+
+    await new AuditLog({
+      userId: req.user.userId,
+      action: "admin_action",
+      targetType: "file",
+      targetId: file._id,
+      details: { fileName: file.fileName, honeyFile: isHoneyFile, action: "set_honey_file" },
+      status: "success",
+    }).save()
+
+    res.json({
+      message: isHoneyFile ? "File marked as honey file" : "Honey file flag removed",
+      file,
+    })
+  } catch (error) {
+    console.error("Error setting honey file flag:", error)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
 // Delete file
-router.delete("/files/:id", async (req, res) => {
+router.delete("/files/:id", validate({ params: idParam, body: adminSchemas.deleteFile }), async (req, res) => {
   try {
     const file = await File.findById(req.params.id)
     if (!file) {
       return res.status(404).json({ error: "File not found" })
     }
 
-    // Delete from disk
-    if (fs.existsSync(file.filePath)) {
-      fs.unlinkSync(file.filePath)
-    }
+    // Delete the encrypted blob from storage
+    await blobStorage.remove(file.filePath)
 
     // Update user storage
     await User.findByIdAndUpdate(file.userId, {
@@ -610,6 +651,43 @@ router.get("/audit-logs", async (req, res) => {
     console.error("Error fetching audit logs:", error)
     res.status(500).json({ error: "Server error" })
   }
+})
+
+// Verify the tamper-evident audit-log hash chain. Walks every chained entry,
+// recomputes each hash and confirms it links to the previous one — proving the
+// log has not been deleted from, reordered, or edited in place since Phase 6.
+router.get("/audit-logs/verify", async (req, res) => {
+  try {
+    const report = await AuditLog.verifyChain()
+    res.json(report)
+  } catch (error) {
+    console.error("Error verifying audit chain:", error)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// ============== SECURITY ALERTS & RETENTION ==============
+
+// Recent security alerts (honey-file access, etc.) for the live dashboard's
+// initial render; new ones arrive over WebSocket. Backed by the tamper-evident
+// AuditLog, filtered to entries flagged as security alerts.
+router.get("/security/alerts", async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200)
+    const alerts = await AuditLog.find({ "details.securityAlert": true })
+      .populate("userId", "username email")
+      .sort({ timestamp: -1 })
+      .limit(limit)
+    res.json({ alerts })
+  } catch (error) {
+    console.error("Error fetching security alerts:", error)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
+// Active data-retention policy (for honest display on the dashboard).
+router.get("/security/retention", (req, res) => {
+  res.json({ policy: getRetentionPolicy() })
 })
 
 // ============== SYSTEM SETTINGS ==============

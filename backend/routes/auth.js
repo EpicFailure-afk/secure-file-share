@@ -1,13 +1,36 @@
 const express = require("express")
-const bcrypt = require("bcryptjs")
 const jwt = require("jsonwebtoken")
 const crypto = require("crypto")
 const User = require("../models/User")
 const Token = require("../models/Token")
 const Organization = require("../models/Organization")
 const UserSession = require("../models/UserSession")
-const { sendVerificationEmail } = require("../utils/email")
+const SystemSettings = require("../models/SystemSettings")
+
+// How long an account stays locked after exceeding max_login_attempts
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
+const { sendVerificationEmail, sendEmail } = require("../utils/email")
 const { createSession, logActivity, getActivityDescription } = require("../utils/activityTracker")
+const {
+  loginLimiter,
+  loginAccountLimiter,
+  otpLimiter,
+  otpAccountLimiter,
+  forgotPasswordLimiter,
+} = require("../middleware/rateLimit")
+const { validate } = require("../middleware/validate")
+const { auth: authSchemas } = require("../validators/schemas")
+const { hashPassword, verifyPassword, needsRehash } = require("../utils/passwords")
+const { generateOtp } = require("../utils/otp")
+const {
+  signAccessToken,
+  issueRefreshToken,
+  findValidRefreshToken,
+  rotateRefreshToken,
+  hashToken,
+  ACCESS_TTL_SECONDS,
+} = require("../utils/tokens")
+const RefreshToken = require("../models/RefreshToken")
 
 const router = express.Router()
 
@@ -23,23 +46,28 @@ const generateInviteCode = (length = 8) => {
 }
 
 //! Register a new user
-router.post("/register", async (req, res) => {
+router.post("/register", validate({ body: authSchemas.register }), async (req, res) => {
   try {
-    const { username, email, password, role, inviteCode, jobTitle, department, createOrg, organizationName } = req.body
+    // NOTE: `role` is intentionally NOT read from the request body. The role is
+    // decided entirely server-side (createOrg => manager, otherwise => staff) so
+    // a tampered request that sends role=manager/admin can never escalate.
+    const { username, email, password, inviteCode, jobTitle, department, createOrg, organizationName } = req.body
 
     // Check if email already exists
     const existingEmail = await User.findOne({ email })
     if (existingEmail) return res.status(400).json({ error: "User with this email already exists" })
 
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10)
+    // Hash the password (Argon2id)
+    const hashedPassword = await hashPassword(password)
 
     // Create new user
     const newUser = new User({ 
       username, 
       email, 
       password: hashedPassword,
-      role: createOrg ? "manager" : (role || "staff"),
+      // Org creators become managers; everyone else (join-via-invite or solo
+      // sign-up) is always staff — the body role is never trusted.
+      role: createOrg ? "manager" : "staff",
       jobTitle: jobTitle || "",
       department: department || "",
       approvalStatus: "approved",
@@ -126,7 +154,7 @@ router.post("/register", async (req, res) => {
 })
 
 //! Request login token (step 1 of 2-step login)
-router.post("/request-token", async (req, res) => {
+router.post("/request-token", loginLimiter, loginAccountLimiter, validate({ body: authSchemas.requestToken }), async (req, res) => {
   try {
     const { email, password } = req.body
 
@@ -134,12 +162,48 @@ router.post("/request-token", async (req, res) => {
     const user = await User.findOne({ email })
     if (!user) return res.status(400).json({ error: "Invalid email or password" })
 
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.password)
-    if (!isMatch) return res.status(400).json({ error: "Invalid email or password" })
+    // Account lockout: refuse if the account is currently locked. This layers
+    // on top of the per-IP/per-account rate limiter — the limiter slows guessing
+    // across requests, the lockout stops it for a window after N bad passwords.
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.lockUntil - new Date()) / 60000)
+      return res.status(423).json({
+        error: `Account temporarily locked due to too many failed attempts. Try again in ${minutesLeft} minute(s).`,
+      })
+    }
 
-    // Generate a random 6-character token
-    const loginToken = crypto.randomBytes(3).toString("hex")
+    // Check password (supports both legacy bcrypt and Argon2id hashes)
+    const isMatch = await verifyPassword(password, user.password)
+    if (!isMatch) {
+      // Count the failure and lock the account once it exceeds the configured max
+      const maxAttempts = (await SystemSettings.getSetting("max_login_attempts")) || 5
+      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1
+      if (user.failedLoginAttempts >= maxAttempts) {
+        user.lockUntil = new Date(Date.now() + LOCKOUT_DURATION_MS)
+        user.failedLoginAttempts = 0
+      }
+      await user.save()
+      return res.status(400).json({ error: "Invalid email or password" })
+    }
+
+    // Successful password check — clear any failed-attempt counter / lock
+    if (user.failedLoginAttempts > 0 || user.lockUntil) {
+      user.failedLoginAttempts = 0
+      user.lockUntil = null
+    }
+
+    // Lazily upgrade legacy bcrypt hashes to Argon2id on successful login
+    if (needsRehash(user.password)) {
+      try {
+        user.password = await hashPassword(password)
+      } catch (rehashErr) {
+        console.error("Password rehash failed (non-fatal):", rehashErr.message)
+      }
+    }
+    await user.save()
+
+    // Generate a strong mixed-character-class login code (CSPRNG, case-sensitive)
+    const loginToken = generateOtp(8)
 
     // Save token to database with expiration
     const tokenDoc = new Token({
@@ -161,7 +225,7 @@ router.post("/request-token", async (req, res) => {
 })
 
 //! Verify login token (step 2 of 2-step login)
-router.post("/verify-token", async (req, res) => {
+router.post("/verify-token", otpLimiter, otpAccountLimiter, validate({ body: authSchemas.verifyToken }), async (req, res) => {
   try {
     const { email, token } = req.body
 
@@ -194,6 +258,55 @@ router.post("/verify-token", async (req, res) => {
     // Update last login
     user.lastLogin = new Date()
     await user.save()
+
+    // Context-aware login: flag a sign-in from a new device or location and
+    // notify the user (non-blocking). This also records a high-priority signal
+    // that the Phase 7 risk engine will consume. Detection compares against the
+    // user's prior sessions, so it never fires on a user's very first login.
+    try {
+      const { parseUserAgent } = require("../utils/activityTracker")
+      const ua = req.headers["user-agent"]
+      const ip = req.ip
+      const { device, browser, os } = parseUserAgent(ua)
+      const priorSessions = await UserSession.find({ userId: user._id })
+        .sort({ loginTime: -1 })
+        .limit(50)
+
+      if (priorSessions.length > 0) {
+        const knownSignature = priorSessions.some(
+          (s) => s.browser === browser && s.os === os && s.device === device,
+        )
+        const knownIp = priorSessions.some((s) => s.ipAddress === ip)
+
+        if (!knownSignature || !knownIp) {
+          const reasons = []
+          if (!knownSignature) reasons.push(`a new device/browser (${browser} on ${os})`)
+          if (!knownIp) reasons.push(`a new location (IP ${ip})`)
+          const reasonText = reasons.join(" and ")
+
+          sendEmail(
+            user.email,
+            "New sign-in to your Secure Vault account",
+            `We detected a sign-in to your account from ${reasonText} at ${new Date().toUTCString()}.\n\n` +
+              `If this was you, you can ignore this message. If not, change your password and use ` +
+              `"Log out of all devices" immediately.`,
+          ).catch((e) => console.error("New-device email failed (non-fatal):", e.message))
+
+          if (user.organization) {
+            logActivity({
+              organizationId: user.organization._id,
+              userId: user._id,
+              type: "login",
+              description: `${user.username} signed in from ${reasonText}`,
+              metadata: { ipAddress: ip, device, browser, os, newDevice: !knownSignature, newLocation: !knownIp },
+              priority: "high",
+            }).catch(() => {})
+          }
+        }
+      }
+    } catch (ctxErr) {
+      console.error("Context-aware login check failed (non-fatal):", ctxErr.message)
+    }
 
     // Close any existing open sessions for this user (prevents duplicate active sessions)
     await UserSession.updateMany(
@@ -237,20 +350,28 @@ router.post("/verify-token", async (req, res) => {
       }
     }
 
-    // Generate JWT token with role and org info
-    const jwtToken = jwt.sign(
-      { 
-        userId: user._id,
-        role: user.role,
-        organizationId: user.organization?._id || null,
-        sessionId: sessionId,
-      }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: "8h" }
+    // Issue a short-lived access token + a revocable refresh token. The access
+    // token keeps the same claims as before (so all existing routes keep
+    // working); the refresh token is tracked server-side for revocation.
+    const accessToken = signAccessToken({
+      userId: user._id,
+      role: user.role,
+      organizationId: user.organization?._id || null,
+      sessionId: sessionId,
+    })
+    const { raw: refreshToken } = await issueRefreshToken(
+      user._id,
+      sessionId,
+      req.ip,
+      req.headers["user-agent"],
     )
 
-    res.json({ 
-      token: jwtToken, 
+    res.json({
+      // `token` remains the access token for backward compatibility with the
+      // existing frontend; new clients also receive a refresh token.
+      token: accessToken,
+      refreshToken,
+      accessTokenExpiresIn: ACCESS_TTL_SECONDS,
       sessionId: sessionId,
       message: "Login successful",
       user: {
@@ -272,8 +393,54 @@ router.post("/verify-token", async (req, res) => {
   }
 })
 
+//! Exchange a refresh token for a new access token (with rotation)
+router.post("/refresh", validate({ body: authSchemas.refresh }), async (req, res) => {
+  try {
+    const { refreshToken } = req.body
+
+    const result = await findValidRefreshToken(refreshToken)
+    if (!result) {
+      return res.status(401).json({ error: "Invalid or expired refresh token" })
+    }
+
+    // Reuse of an already-rotated/revoked token suggests theft — revoke the
+    // whole family for that user and force re-login.
+    if (result.reused) {
+      await RefreshToken.updateMany(
+        { userId: result.doc.userId, revoked: false },
+        { $set: { revoked: true, revokedAt: new Date() } },
+      )
+      return res.status(401).json({ error: "Session is no longer valid. Please log in again." })
+    }
+
+    const doc = result.doc
+    const user = await User.findById(doc.userId).populate("organization", "name slug")
+    if (!user) {
+      return res.status(401).json({ error: "User not found" })
+    }
+
+    // Rotate the refresh token and mint a fresh access token
+    const { raw: newRefreshToken } = await rotateRefreshToken(doc, req.ip, req.headers["user-agent"])
+    const accessToken = signAccessToken({
+      userId: user._id,
+      role: user.role,
+      organizationId: user.organization?._id || null,
+      sessionId: doc.sessionId,
+    })
+
+    res.json({
+      token: accessToken,
+      refreshToken: newRefreshToken,
+      accessTokenExpiresIn: ACCESS_TTL_SECONDS,
+    })
+  } catch (err) {
+    console.error("Error in refresh:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
+
 //! Request password reset
-router.post("/forgot-password", async (req, res) => {
+router.post("/forgot-password", forgotPasswordLimiter, validate({ body: authSchemas.forgotPassword }), async (req, res) => {
   try {
     const { email } = req.body
 
@@ -281,8 +448,8 @@ router.post("/forgot-password", async (req, res) => {
     const user = await User.findOne({ email })
     if (!user) return res.status(400).json({ error: "User not found" })
 
-    // Generate a random 6-character token
-    const resetToken = crypto.randomBytes(3).toString("hex")
+    // Generate a strong mixed-character-class reset code (CSPRNG, case-sensitive)
+    const resetToken = generateOtp(8)
 
     // Save token to database with expiration
     const tokenDoc = new Token({
@@ -303,8 +470,8 @@ router.post("/forgot-password", async (req, res) => {
   }
 })
 
-// Reset password with token
-router.post("/reset-password", async (req, res) => {
+// Reset password with token (same brute-force profile as OTP verification)
+router.post("/reset-password", otpLimiter, otpAccountLimiter, validate({ body: authSchemas.resetPassword }), async (req, res) => {
   try {
     const { email, token, newPassword } = req.body
 
@@ -322,8 +489,8 @@ router.post("/reset-password", async (req, res) => {
 
     if (!tokenDoc) return res.status(400).json({ error: "Invalid or expired token" })
 
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    // Hash the new password (Argon2id)
+    const hashedPassword = await hashPassword(newPassword)
 
     // Update user's password
     user.password = hashedPassword
@@ -342,24 +509,48 @@ router.post("/reset-password", async (req, res) => {
 //! Logout - end session
 router.post("/logout", async (req, res) => {
   try {
-    const { sessionId } = req.body
+    const { sessionId, refreshToken } = req.body
     const authHeader = req.headers.authorization
-    
-    if (!sessionId && !authHeader) {
+
+    // Revoke the presented refresh token so it can't be used after logout
+    if (refreshToken) {
+      try {
+        await RefreshToken.updateOne(
+          { tokenHash: hashToken(refreshToken) },
+          { $set: { revoked: true, revokedAt: new Date() } },
+        )
+      } catch (e) {
+        // best-effort
+      }
+    }
+
+    if (!sessionId && !authHeader && !refreshToken) {
       return res.json({ success: true, message: "Logged out" })
     }
 
-    // Try to get sessionId and userId from JWT
+    // Try to get sessionId and userId from JWT (accept "Bearer X" or raw token)
     let sid = sessionId
     let userId = null
     if (authHeader) {
       try {
-        const token = authHeader.split(" ")[1]
+        const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : authHeader.trim()
         const decoded = jwt.verify(token, process.env.JWT_SECRET)
         if (!sid) sid = decoded.sessionId
         userId = decoded.userId
       } catch (e) {
         // Token might be expired, that's ok
+      }
+    }
+
+    // Also revoke any refresh tokens tied to this session
+    if (sid) {
+      try {
+        await RefreshToken.updateMany(
+          { sessionId: sid, revoked: false },
+          { $set: { revoked: true, revokedAt: new Date() } },
+        )
+      } catch (e) {
+        // best-effort
       }
     }
 
@@ -413,6 +604,28 @@ router.post("/logout", async (req, res) => {
 //! Heartbeat to keep session alive
 const WorkLog = require("../models/WorkLog")
 const auth = require("../middleware/auth")
+
+//! Logout from ALL devices — revoke every refresh token + close every session
+router.post("/logout-all", auth, async (req, res) => {
+  try {
+    const userId = req.user.userId
+
+    await RefreshToken.updateMany(
+      { userId, revoked: false },
+      { $set: { revoked: true, revokedAt: new Date() } },
+    )
+
+    await UserSession.updateMany(
+      { userId, logoutTime: null, status: { $in: ["online", "idle"] } },
+      { $set: { logoutTime: new Date(), status: "offline" } },
+    )
+
+    res.json({ success: true, message: "Logged out from all devices" })
+  } catch (err) {
+    console.error("Error in logout-all:", err)
+    res.status(500).json({ error: "Server error" })
+  }
+})
 
 router.post("/heartbeat", auth, async (req, res) => {
   try {

@@ -40,6 +40,12 @@ export const verifyLoginToken = async (verificationData) => {
 
     if (response.ok) {
       localStorage.setItem("token", data.token)
+      if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken)
+      if (data.accessTokenExpiresIn) {
+        // Absolute expiry (ms epoch) so the silent-refresh scheduler knows when
+        // to renew the access token.
+        localStorage.setItem("tokenExpiresAt", String(Date.now() + data.accessTokenExpiresIn * 1000))
+      }
     }
 
     return data
@@ -221,6 +227,94 @@ export const uploadFile = async (formData, progressCallback, onScanning) => {
   } catch (error) {
     console.error("Upload File Error:", error)
     return { error: "Network error. Please try again.", networkError: true }
+  }
+}
+
+// Files at or above this size use the chunked/resumable upload path.
+export const CHUNK_UPLOAD_THRESHOLD = 10 * 1024 * 1024 // 10 MB
+const CHUNK_SIZE = 5 * 1024 * 1024 // 5 MB
+
+// Retry a fetch-returning fn on transient failures (network throw or HTTP 5xx),
+// with small backoff. 4xx responses are real rejections and are NOT retried.
+const withRetry = async (fn, attempts = 3) => {
+  let lastErr
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fn()
+      if (res.ok || (res.status >= 400 && res.status < 500)) return res
+      lastErr = new Error(`HTTP ${res.status}`)
+    } catch (err) {
+      lastErr = err
+    }
+    await new Promise((r) => setTimeout(r, 400 * (i + 1)))
+  }
+  throw lastErr || new Error("Request failed after retries")
+}
+
+// Chunked, resumable upload with per-chunk retry. Returns the same result shape
+// as uploadFile so callers can treat both paths identically.
+export const uploadFileChunked = async (file, opts = {}, progressCallback, onScanning) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) return { error: "Unauthorized" }
+
+    const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE))
+    const authJson = { Authorization: token, "Content-Type": "application/json" }
+
+    // 1. init
+    const initRes = await withRetry(() =>
+      fetch(`/api/files/upload/init`, {
+        method: "POST",
+        headers: authJson,
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type || "application/octet-stream",
+          fileSize: file.size,
+          totalChunks,
+          folderId: opts.folderId || undefined,
+        }),
+      }),
+    )
+    const initBody = await initRes.json().catch(() => ({}))
+    if (!initRes.ok) return { error: initBody.error || "Could not start upload", status: initRes.status }
+    const { uploadId } = initBody
+
+    // 2. upload chunks (skip any already received — supports resume), with retry
+    const already = new Set(initBody.received || [])
+    for (let i = 0; i < totalChunks; i++) {
+      if (!already.has(i)) {
+        const slice = file.slice(i * CHUNK_SIZE, Math.min((i + 1) * CHUNK_SIZE, file.size))
+        await withRetry(() =>
+          fetch(`/api/files/upload/${uploadId}/chunk/${i}`, {
+            method: "PUT",
+            headers: { Authorization: token, "Content-Type": "application/octet-stream" },
+            body: slice,
+          }),
+        )
+      }
+      if (typeof progressCallback === "function") {
+        progressCallback(Math.min(99, Math.round(((i + 1) / totalChunks) * 100)))
+      }
+    }
+
+    // 3. complete — the server scans + encrypts here, so flag the scanning phase
+    if (typeof onScanning === "function") onScanning()
+    const completeRes = await withRetry(() =>
+      fetch(`/api/files/upload/${uploadId}/complete`, {
+        method: "POST",
+        headers: { Authorization: token },
+      }),
+    )
+    const completeBody = await completeRes.json().catch(() => ({ networkError: true }))
+    if (!completeRes.ok) {
+      return { error: completeBody.error || "Upload failed to finalize", status: completeRes.status }
+    }
+    return completeBody
+  } catch (error) {
+    console.error("Chunked Upload Error:", error)
+    // Could not finish despite retries — flag as network-class so the caller's
+    // reconcile step can confirm whether the file actually landed.
+    return { error: "Network error during upload", networkError: true }
   }
 }
 
@@ -744,6 +838,55 @@ export const getAuditLogs = async (page = 1, limit = 50, filters = {}) => {
     return await response.json()
   } catch (error) {
     console.error("Audit Logs Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Verify the tamper-evident audit-log hash chain (admin).
+export const verifyAuditChain = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) return { error: "Unauthorized" }
+    const response = await fetch(`/api/admin/audit-logs/verify`, {
+      method: "GET",
+      headers: { Authorization: token },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Verify Audit Chain Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Recent security alerts for the dashboard's initial render (admin).
+export const getSecurityAlerts = async (limit = 50) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) return { error: "Unauthorized" }
+    const response = await fetch(`/api/admin/security/alerts?limit=${limit}`, {
+      method: "GET",
+      headers: { Authorization: token },
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Security Alerts Error:", error)
+    return { error: "Network error. Please try again." }
+  }
+}
+
+// Toggle a file as a honey file / decoy (admin).
+export const setHoneyFile = async (fileId, isHoneyFile = true) => {
+  try {
+    const token = localStorage.getItem("token")
+    if (!token) return { error: "Unauthorized" }
+    const response = await fetch(`/api/admin/files/${fileId}/honey`, {
+      method: "POST",
+      headers: { Authorization: token, "Content-Type": "application/json" },
+      body: JSON.stringify({ isHoneyFile }),
+    })
+    return await response.json()
+  } catch (error) {
+    console.error("Set Honey File Error:", error)
     return { error: "Network error. Please try again." }
   }
 }
@@ -1702,9 +1845,51 @@ export const sendHeartbeat = async () => {
 }
 
 // Logout with session end
+// Clears all client-side auth state (access token, refresh token, expiry, session)
+const clearAuthStorage = () => {
+  localStorage.removeItem("token")
+  localStorage.removeItem("refreshToken")
+  localStorage.removeItem("tokenExpiresAt")
+  localStorage.removeItem("sessionId")
+}
+
+// Exchange the stored refresh token for a fresh access token. Updates
+// localStorage in place so every other API call (which reads the token fresh
+// from localStorage) transparently uses the new token. Returns true on success.
+export const refreshAccessToken = async () => {
+  try {
+    const refreshToken = localStorage.getItem("refreshToken")
+    if (!refreshToken) return false
+
+    const response = await fetch(`/api/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    })
+
+    if (!response.ok) {
+      // Refresh token invalid/expired/revoked — force a clean re-login
+      clearAuthStorage()
+      return false
+    }
+
+    const data = await response.json()
+    if (data.token) localStorage.setItem("token", data.token)
+    if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken)
+    if (data.accessTokenExpiresIn) {
+      localStorage.setItem("tokenExpiresAt", String(Date.now() + data.accessTokenExpiresIn * 1000))
+    }
+    return true
+  } catch (error) {
+    console.error("Token refresh error:", error)
+    return false
+  }
+}
+
 export const logoutUser = async (sessionId) => {
   try {
     const token = localStorage.getItem("token")
+    const refreshToken = localStorage.getItem("refreshToken")
 
     await fetch(`/api/auth/logout`, {
       method: "POST",
@@ -1712,16 +1897,34 @@ export const logoutUser = async (sessionId) => {
         Authorization: token || "",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ sessionId }),
+      body: JSON.stringify({ sessionId, refreshToken }),
     })
-    
-    localStorage.removeItem("token")
-    localStorage.removeItem("sessionId")
+
+    clearAuthStorage()
     return { success: true }
   } catch (error) {
     console.error("Logout Error:", error)
-    localStorage.removeItem("token")
-    localStorage.removeItem("sessionId")
+    clearAuthStorage()
+    return { success: true }
+  }
+}
+
+// Log out of every device/session for the current user
+export const logoutAllDevices = async () => {
+  try {
+    const token = localStorage.getItem("token")
+    const response = await fetch(`/api/auth/logout-all`, {
+      method: "POST",
+      headers: {
+        Authorization: token || "",
+        "Content-Type": "application/json",
+      },
+    })
+    clearAuthStorage()
+    return await response.json().catch(() => ({ success: true }))
+  } catch (error) {
+    console.error("Logout-all Error:", error)
+    clearAuthStorage()
     return { success: true }
   }
 }

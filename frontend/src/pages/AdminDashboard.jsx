@@ -17,7 +17,9 @@ import {
   updateUserRole, deleteUser, adminRevokeFile, adminRestoreFile, adminDeleteFile,
   scanFile, verifyFileIntegrity, quarantineFile, runIntegrityCheck, scanPendingFiles,
   cleanupExpiredFiles, getAuditLogs, getUserProfile,
+  verifyAuditChain, getSecurityAlerts,
 } from "../api";
+import { useSecurityFeed } from "../hooks/useSecurityFeed";
 import styles from "./AdminDashboard.module.css";
 
 const formatBytes = (bytes) => {
@@ -51,6 +53,12 @@ const AdminDashboard = () => {
   const [fileFilter, setFileFilter] = useState({});
   const [pagination, setPagination] = useState({ page: 1, pages: 1 });
   const [actionLoading, setActionLoading] = useState(null);
+  const [chainStatus, setChainStatus] = useState(null);
+  const [seedAlerts, setSeedAlerts] = useState([]);
+
+  // Live security feed (WebSocket) + recent alerts from the audit log on load.
+  const { events: liveEvents, connected: feedConnected } = useSecurityFeed();
+  const securityEvents = [...liveEvents, ...seedAlerts].slice(0, 50);
 
   /* --------------------------------- fetch --------------------------------- */
   const fetchDashboard = useCallback(async () => {
@@ -58,7 +66,35 @@ const AdminDashboard = () => {
     const res = await getAdminDashboard();
     if (res.error) toast.error({ title: "Couldn't load dashboard", description: res.error });
     else { setStats(res.stats); setRecentActivity(res.recentActivity || []); }
+    // Seed the live security panel with recent alerts from the audit log.
+    const alertsRes = await getSecurityAlerts(50);
+    if (!alertsRes.error) {
+      setSeedAlerts(
+        (alertsRes.alerts || []).map((a) => ({
+          _id: a._id,
+          kind: "security_alert",
+          type: a.details?.alertType || "security_alert",
+          severity: a.details?.severity || "high",
+          message: a.details?.message || a.action,
+          timestamp: a.timestamp,
+        })),
+      );
+    }
     setLoading(false);
+  }, [toast]);
+
+  const handleVerifyChain = useCallback(async () => {
+    setActionLoading("verifyChain");
+    setChainStatus(null);
+    const res = await verifyAuditChain();
+    setActionLoading(null);
+    if (res.error) {
+      toast.error({ title: "Verification failed", description: res.error });
+    } else {
+      setChainStatus(res);
+      if (res.valid) toast.success({ title: "Audit chain intact", description: `${res.checked} entries verified` });
+      else toast.error({ title: "Audit chain BROKEN", description: `${res.reason} (entry #${res.brokenAt})` });
+    }
   }, [toast]);
 
   const fetchUsers = useCallback(async (page = 1) => {
@@ -235,11 +271,17 @@ const AdminDashboard = () => {
                       <Button variant="secondary" leftIcon={<FaShieldAlt />} loading={actionLoading === "integrityCheck"} onClick={() => systemAction("integrityCheck")}>Integrity check</Button>
                       <Button variant="secondary" leftIcon={<FaVirus />} loading={actionLoading === "scanPending"} onClick={() => systemAction("scanPending")}>Scan pending</Button>
                       <Button variant="secondary" leftIcon={<FaTrash />} loading={actionLoading === "cleanup"} onClick={() => systemAction("cleanup")}>Cleanup expired</Button>
+                      <Button variant="secondary" leftIcon={<FaCheckCircle />} loading={actionLoading === "verifyChain"} onClick={handleVerifyChain}>Verify audit chain</Button>
                     </div>
                     <div className={styles.clamav}>
                       <Badge variant={stats.system?.clamAvAvailable ? "success" : "danger"} size="sm" dot>
                         {stats.system?.clamAvAvailable ? "ClamAV available" : "ClamAV unavailable"}
                       </Badge>
+                      {chainStatus && (
+                        <Badge variant={chainStatus.valid ? "success" : "danger"} size="sm" dot>
+                          {chainStatus.valid ? `Audit chain intact (${chainStatus.checked})` : `Chain broken @ #${chainStatus.brokenAt}`}
+                        </Badge>
+                      )}
                     </div>
                   </CardBody>
                 </Card>
@@ -254,6 +296,29 @@ const AdminDashboard = () => {
                           <Badge variant="neutral" size="sm">{a.action}</Badge>
                           <span className={styles.activityUser}>{a.userId?.username || "System"}</span>
                           <span className={styles.activityTime}>{formatDate(a.timestamp)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardBody>
+                </Card>
+
+                <Card variant="surface" elevation={1} padding="md">
+                  <CardBody style={{ padding: 0 }}>
+                    <h3 className={styles.cardTitle}>
+                      <FaShieldAlt /> Live security
+                      <Badge variant={feedConnected ? "success" : "neutral"} size="sm" dot style={{ marginLeft: "auto" }}>
+                        {feedConnected ? "Live" : "Offline"}
+                      </Badge>
+                    </h3>
+                    <ul className={styles.activityList}>
+                      {securityEvents.length === 0 && <li className={styles.muted}>No security alerts.</li>}
+                      {securityEvents.map((e) => (
+                        <li key={e._id} className={styles.activityRow}>
+                          <Badge variant={e.severity === "critical" ? "danger" : e.severity === "high" ? "warning" : "neutral"} size="sm">
+                            {e.type}
+                          </Badge>
+                          <span className={styles.activityUser}>{e.message}</span>
+                          <span className={styles.activityTime}>{formatDate(e.timestamp)}</span>
                         </li>
                       ))}
                     </ul>

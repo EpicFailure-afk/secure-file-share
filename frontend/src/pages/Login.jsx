@@ -32,7 +32,7 @@ const Login = () => {
       }
       if (res.success) {
         setStep(2);
-        toast.info({ title: "Code sent", description: "Check your inbox for the 6-character code." });
+        toast.info({ title: "Code sent", description: "Check your inbox for the 8-character code." });
       } else {
         setError("Failed to send verification token. Please try again.");
       }
@@ -89,7 +89,7 @@ const Login = () => {
               <p className={styles.subtitle}>
                 {step === 1
                   ? "Sign in to continue to your secure dashboard."
-                  : "Enter the 6-character verification code we just emailed you."}
+                  : "Enter the 8-character verification code we just emailed you."}
               </p>
             </header>
 
@@ -151,17 +151,17 @@ const Login = () => {
               <form className={styles.form} onSubmit={handleVerifyToken}>
                 <p className={styles.infoBox}>
                   <FaKey />
-                  <span>We sent a 6-character code to <strong>{email}</strong>. It expires in 5 minutes.</span>
+                  <span>We sent an 8-character code to <strong>{email}</strong>. It expires in 5 minutes.</span>
                 </p>
 
                 <FormField label="Verification code" required>
                   <Input
                     type="text"
-                    placeholder="ABC123"
+                    placeholder="Aa1#xY2!"
                     value={token}
                     onChange={(e) => setToken(e.target.value)}  //! fixed
                     leftIcon={<FaKey />}
-                    maxLength={6}
+                    maxLength={8}
                     autoComplete="one-time-code"
                     required
                     style={{

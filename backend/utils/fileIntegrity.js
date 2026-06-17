@@ -3,6 +3,7 @@ const fs = require("fs")
 const path = require("path")
 const File = require("../models/File")
 const AuditLog = require("../models/AuditLog")
+const blobStorage = require("./storage")
 
 // The directory where encrypted files actually live. Resolved the same way the
 // upload route resolves it (relative to the backend source tree), so it stays
@@ -61,10 +62,20 @@ const verifyFileIntegrity = async (fileId) => {
       return { verified: false, message: "No hash stored for this file" }
     }
 
-    // Resolve the file's current location at check time (with a by-name fallback
-    // for stale absolute paths) instead of trusting only the path baked in at
-    // upload time.
-    const resolvedPath = resolveExistingPath(file.filePath)
+    // Resolve the encrypted blob at check time. First try the local disk (with a
+    // by-name fallback for stale absolute paths — legacy/local driver), then the
+    // storage layer (e.g. a MinIO object), which it is fetched to a temp file for
+    // hashing.
+    let resolvedPath = resolveExistingPath(file.filePath)
+    let cleanupTemp = () => {}
+    let fromDisk = Boolean(resolvedPath)
+
+    if (!resolvedPath && (await blobStorage.exists(file.filePath))) {
+      const src = await blobStorage.fetchToTemp(file.filePath)
+      resolvedPath = src.path
+      cleanupTemp = src.cleanup
+    }
+
     if (!resolvedPath) {
       await File.findByIdAndUpdate(fileId, {
         integrityVerified: false,
@@ -73,12 +84,17 @@ const verifyFileIntegrity = async (fileId) => {
       return { verified: false, message: "File not found on disk" }
     }
 
-    // Self-heal a drifted path so future checks (and downloads) find the file.
-    if (resolvedPath !== file.filePath) {
+    // Self-heal a drifted local path so future checks (and downloads) find it.
+    if (fromDisk && resolvedPath !== file.filePath) {
       await File.findByIdAndUpdate(fileId, { filePath: resolvedPath })
     }
 
-    const currentHash = await calculateFileHash(resolvedPath)
+    let currentHash
+    try {
+      currentHash = await calculateFileHash(resolvedPath)
+    } finally {
+      cleanupTemp()
+    }
     const isVerified = currentHash === file.fileHash
 
     await File.findByIdAndUpdate(fileId, {

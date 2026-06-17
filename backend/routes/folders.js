@@ -6,6 +6,9 @@ const User = require("../models/User")
 const AuditLog = require("../models/AuditLog")
 const authMiddleware = require("../middleware/auth")
 const { logActivity, getActivityDescription } = require("../utils/activityTracker")
+const blobStorage = require("../utils/storage")
+const { validate } = require("../middleware/validate")
+const { folders: folderSchemas, idParam } = require("../validators/schemas")
 
 const router = express.Router()
 
@@ -30,7 +33,7 @@ router.get("/", authMiddleware, async (req, res) => {
 })
 
 //! Create a folder
-router.post("/", authMiddleware, async (req, res) => {
+router.post("/", authMiddleware, validate({ body: folderSchemas.create }), async (req, res) => {
   try {
     const { name, parentFolder } = req.body
     const trimmed = (name || "").trim()
@@ -73,7 +76,7 @@ const collectFolderTree = async (rootId, userId) => {
 }
 
 //! Rename or move a folder
-router.patch("/:id", authMiddleware, async (req, res) => {
+router.patch("/:id", authMiddleware, validate({ params: idParam, body: folderSchemas.update }), async (req, res) => {
   try {
     const folder = await Folder.findOne({ _id: req.params.id, userId: req.user.userId })
     if (!folder) return res.status(404).json({ error: "Folder not found" })
@@ -123,7 +126,7 @@ router.delete("/:id", authMiddleware, async (req, res) => {
     for (const file of files) {
       freedBytes += file.fileSize || 0
       try {
-        if (file.filePath && fs.existsSync(file.filePath)) fs.unlinkSync(file.filePath)
+        await blobStorage.remove(file.filePath)
       } catch (unlinkErr) {
         console.error("Error deleting file from storage:", unlinkErr.message)
       }

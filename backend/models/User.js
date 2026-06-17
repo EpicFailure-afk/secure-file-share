@@ -54,6 +54,15 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Account lockout (brute-force protection; max attempts from SystemSettings)
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: {
+      type: Date,
+      default: null,
+    },
     storageUsed: {
       type: Number,
       default: 0, // in bytes

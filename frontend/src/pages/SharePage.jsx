@@ -9,8 +9,8 @@ import { Button, Card, CardBody, Badge, Spinner } from "../components/atoms";
 import { FormField, EmptyState } from "../components/molecules";
 import Input from "../components/atoms/Input";
 import MeshBackdrop from "../components/MeshBackdrop";
+import LogoMark from "../components/LogoMark";
 import { verifyShareAccess, getSharedFileInfo, requestShareAccess } from "../api";
-import logo from "../assets/image.png";
 import styles from "./SharePage.module.css";
 
 const formatFileSize = (bytes) => {
@@ -102,7 +102,12 @@ const SharePage = () => {
   const handleDownload = async () => {
     try {
       setSubmitting(true);
-      const response = await fetch(`http://localhost:5000/api/files/share/${token}/download?code=${verificationCode}`);
+      // Same-origin request through the nginx /api proxy (the backend port is
+      // not publicly reachable). The code is URL-encoded because strong tokens
+      // can contain special characters.
+      const response = await fetch(
+        `/api/files/share/${token}/download?code=${encodeURIComponent(verificationCode)}`
+      );
       if (!response.ok) throw new Error("Failed to download file");
 
       let filename = fileInfo.fileName;
@@ -162,7 +167,7 @@ const SharePage = () => {
       <div className={styles.page}>
         <header className={styles.brand}>
           <Link to="/" className={styles.brandLink}>
-            <img src={logo} alt="SecureShare" className={styles.brandLogo} />
+            <LogoMark className={styles.brandLogo} />
             <span className={styles.brandText}>SecureShare</span>
           </Link>
         </header>
@@ -216,7 +221,7 @@ const SharePage = () => {
                   <form onSubmit={handleVerifyAccess} className={styles.form}>
                     <FormField label="Verification code" required>
                       <Input
-                        placeholder="ABC123"
+                        placeholder="Aa1#xY2!"
                         value={verificationCode}
                         onChange={(e) => setVerificationCode(e.target.value)}
                         leftIcon={<FaKey />}

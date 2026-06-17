@@ -70,6 +70,14 @@ const fileSchema = new mongoose.Schema({
     type: String,
     default: null, // For GCM and ChaCha20 modes
   },
+  // Envelope encryption: the per-file Data Encryption Key (DEK) wrapped under a
+  // versioned master Key Encryption Key (KEK) from the key vault. The raw DEK is
+  // never stored. Legacy files (encrypted directly with the master key) leave
+  // these null and decrypt via the legacy master-key path.
+  dekWrapped: { type: String, default: null },
+  dekWrapIv: { type: String, default: null },
+  dekWrapTag: { type: String, default: null },
+  kekVersion: { type: String, default: null },
   // File integrity check fields
   fileHash: {
     type: String,
@@ -170,6 +178,14 @@ const fileSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     default: null,
+  },
+  // Honey file (decoy). When true, ANY access to this file is treated as a
+  // high-signal intrusion indicator: it raises a loud, emailed, real-time
+  // security alert (see utils/securityAlerts.js). The file is still served so
+  // an intruder never learns it was a trap. Planted/cleared by admins.
+  isHoneyFile: {
+    type: Boolean,
+    default: false,
   },
 })
 

@@ -18,6 +18,25 @@ services:
         - EMAIL_FROM=${EMAIL_FROM}
         - APP_URL=${APP_URL}
         - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+        # Old key, ONLY for scripts/rotateEncryption.js. Remove together with
+        # the ENCRYPTION_KEY_OLD line in .env once the migration has run.
+        - ENCRYPTION_KEY_OLD=${ENCRYPTION_KEY_OLD:-}
+        # Key vault (envelope encryption). Zero-config: with none of these set,
+        # ENCRYPTION_KEY is used as KEK "v1". To rotate, supply a versioned
+        # keyring (KEK_KEYRING JSON or a mounted KEK_KEYRING_FILE) + active version.
+        - KEK_KEYRING=${KEK_KEYRING:-}
+        - KEK_ACTIVE_VERSION=${KEK_ACTIVE_VERSION:-}
+        - KEK_KEYRING_FILE=${KEK_KEYRING_FILE:-}
+        # Object storage (MinIO). Encrypted blobs live in the bucket; the local
+        # uploads volume below is kept so pre-MinIO files remain readable
+        # (the storage layer reads legacy local paths through to disk).
+        - STORAGE_DRIVER=${STORAGE_DRIVER:-minio}
+        - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio}
+        - MINIO_PORT=${MINIO_PORT:-9000}
+        - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
+        - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+        - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+        - MINIO_BUCKET=${MINIO_BUCKET:-securevault}
       ports:
       - "5000:5000"   # expose backend separately here
       networks:
@@ -29,11 +48,34 @@ services:
         # Without this volume the uploads live in the ephemeral container layer
         # and are wiped on every restart -> integrity check "File not found".
         - uploads_data:/app/src/uploads
+      depends_on:
+        minio:
+          condition: service_healthy
       healthcheck:
-        test: ["CMD", "curl", "-f", "http://localhost:5000/"] 
+        test: ["CMD", "curl", "-f", "http://localhost:5000/"]
         interval: 10s
         timeout: 5s
         retries: 3
+
+  minio:
+    container_name: minio
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    networks:
+      - app_network
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   nginx:
     container_name: nginx
@@ -58,3 +100,4 @@ networks:
 volumes:
   mongodb_data:
   uploads_data:
+  minio_data:

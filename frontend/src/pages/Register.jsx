@@ -10,11 +10,6 @@ import { FormField, Modal, useToast } from "../components/molecules";
 import { registerUser } from "../api";
 import styles from "./auth.module.css";
 
-const ROLES = [
-  { value: "staff", label: "Staff", description: "Regular employee with basic file access." },
-  { value: "admin", label: "Admin", description: "Administrator with user management." },
-];
-
 const Register = () => {
   const navigate = useNavigate();
   const toast = useToast();
@@ -49,15 +44,14 @@ const Register = () => {
         jobTitle: userData.jobTitle,
         department: userData.department,
       };
+      // Role is decided entirely server-side: creating an org => manager,
+      // joining via an invite code or signing up solo => staff. The client never
+      // sends a role, so it cannot self-assign an elevated one.
       if (orgAction === "create") {
         reg.createOrg = true;
         reg.organizationName = userData.organizationName;
-        reg.role = "manager";
       } else if (orgAction === "join") {
         reg.inviteCode = userData.inviteCode;
-        reg.role = userData.role;
-      } else {
-        reg.role = "staff";
       }
 
       const res = await registerUser(reg);
@@ -215,26 +209,10 @@ const Register = () => {
                       <span>Ask your organization manager for the invite code.</span>
                     </p>
 
-                    <div>
-                      <label className={styles.fieldLabel}>Select your role</label>
-                      <div className={styles.roleGrid}>
-                        {ROLES.map((role) => {
-                          const selected = userData.role === role.value;
-                          return (
-                            <label
-                              key={role.value}
-                              className={`${styles.roleCard} ${selected ? styles.roleCardActive : ""}`}
-                            >
-                              <input type="radio" name="role" value={role.value} checked={selected} onChange={change} />
-                              <span className={styles.roleHeader}>
-                                <FaUserTie /> {role.label}
-                              </span>
-                              <span className={styles.roleDesc}>{role.description}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    <p className={styles.infoBox}>
+                      <FaUserTie />
+                      <span>You&apos;ll join as <strong>Staff</strong>. A manager can change your role later.</span>
+                    </p>
 
                     <FormField label="Job title (optional)">
                       <Input name="jobTitle" placeholder="Software Engineer" value={userData.jobTitle} onChange={change} leftIcon={<FaBriefcase />} />

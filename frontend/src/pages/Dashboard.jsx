@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  getUserFiles, uploadFile, deleteFile, shareFile, getUserProfile,
+  getUserFiles, uploadFile, uploadFileChunked, CHUNK_UPLOAD_THRESHOLD, deleteFile, shareFile, getUserProfile,
   verifyUserFileIntegrity, lockFile, unlockFile, setFileExpiration,
   downloadFileWithScan, createOrganization, joinOrganization, getOrganizationDetails,
   getFolders, createFolder, updateFolder, deleteFolder, moveFile,
@@ -207,6 +207,16 @@ const Dashboard = () => {
   /* ------------------------------ file actions ------------------------------ */
 
   const uploadOne = async (file, folderId) => {
+    // Large files use the chunked/resumable path (with per-chunk retry); small
+    // files use the single-shot path. Both return the same result shape.
+    if (file.size >= CHUNK_UPLOAD_THRESHOLD) {
+      return uploadFileChunked(
+        file,
+        { folderId },
+        setUploadProgress,
+        () => setUploadPhase("scanning"),
+      );
+    }
     const formData = new FormData();
     formData.append("file", file);
     if (folderId) formData.append("folderId", folderId);

@@ -9,6 +9,8 @@ const WorkLog = require("../models/WorkLog")
 const File = require("../models/File")
 const auth = require("../middleware/auth")
 const { logActivity, getActivityDescription } = require("../utils/activityTracker")
+const { validate } = require("../middleware/validate")
+const { organization: orgSchemas } = require("../validators/schemas")
 
 const router = express.Router()
 
@@ -31,7 +33,7 @@ const managerMiddleware = async (req, res, next) => {
 }
 
 // Create a new organization
-router.post("/create", auth, async (req, res) => {
+router.post("/create", auth, validate({ body: orgSchemas.create }), async (req, res) => {
   try {
     const { name, description, industry } = req.body
     const userId = req.user.userId
@@ -70,6 +72,8 @@ router.post("/create", auth, async (req, res) => {
     await AuditLog.create({
       action: "organization_created",
       userId,
+      targetType: "organization",
+      targetId: organization._id,
       details: { organizationId: organization._id, name: organization.name },
       ipAddress: req.ip,
     })
@@ -113,7 +117,7 @@ router.get("/details", auth, async (req, res) => {
 })
 
 // Join organization with invite code
-router.post("/join", auth, async (req, res) => {
+router.post("/join", auth, validate({ body: orgSchemas.join }), async (req, res) => {
   try {
     const { inviteCode, role, jobTitle, department } = req.body
     const userId = req.user.userId
@@ -160,6 +164,8 @@ router.post("/join", auth, async (req, res) => {
     await AuditLog.create({
       action: "user_joined_organization",
       userId,
+      targetType: "organization",
+      targetId: organization._id,
       details: {
         organizationId: organization._id,
         organizationName: organization.name,
@@ -214,6 +220,8 @@ router.post("/leave", auth, async (req, res) => {
     await AuditLog.create({
       action: "user_left_organization",
       userId,
+      targetType: "organization",
+      targetId: organization._id,
       details: { organizationId: organization._id, organizationName: organization.name },
       ipAddress: req.ip,
     })
@@ -283,7 +291,7 @@ router.get("/members", auth, async (req, res) => {
 })
 
 // Approve/reject pending member
-router.post("/members/:memberId/approve", auth, async (req, res) => {
+router.post("/members/:memberId/approve", auth, validate({ body: orgSchemas.approve }), async (req, res) => {
   try {
     const { memberId } = req.params
     const { action } = req.body // "approve" or "reject"
@@ -325,6 +333,8 @@ router.post("/members/:memberId/approve", auth, async (req, res) => {
     await AuditLog.create({
       action: action === "approve" ? "member_approved" : "member_rejected",
       userId: adminUser._id,
+      targetType: "user",
+      targetId: member._id,
       details: { memberId, memberEmail: member.email },
       ipAddress: req.ip,
     })
@@ -345,7 +355,7 @@ router.post("/members/:memberId/approve", auth, async (req, res) => {
 })
 
 // Update member role
-router.put("/members/:memberId/role", auth, async (req, res) => {
+router.put("/members/:memberId/role", auth, validate({ body: orgSchemas.changeRole }), async (req, res) => {
   try {
     const { memberId } = req.params
     const { role } = req.body
@@ -355,7 +365,21 @@ router.put("/members/:memberId/role", auth, async (req, res) => {
       return res.status(400).json({ error: "You are not part of any organization" })
     }
 
-    // Only owner can promote to admin, admins can manage staff/manager
+    // This route only assigns org-scoped roles. "owner" can only change via
+    // the transfer-ownership route, and "superadmin" is platform-level.
+    if (!["staff", "manager", "admin"].includes(role)) {
+      return res.status(400).json({ error: "Invalid role" })
+    }
+
+    // Users can never change their own role
+    if (memberId === req.user.userId) {
+      return res.status(403).json({ error: "You cannot change your own role" })
+    }
+
+    // Only owner can promote to admin; managers/admins can manage staff/manager.
+    // (Org creators are stored with role "manager" + the Organization.owner ref,
+    // so the owner check is by ID, and "manager" must be in the role gate —
+    // previously it wasn't, locking org creators out of role management.)
     const organization = await Organization.findById(adminUser.organization)
     const isOwner = organization.owner.toString() === adminUser._id.toString()
 
@@ -363,7 +387,7 @@ router.put("/members/:memberId/role", auth, async (req, res) => {
       return res.status(403).json({ error: "Only organization owner can assign admin role" })
     }
 
-    if (!["admin", "owner", "superadmin"].includes(adminUser.role)) {
+    if (!isOwner && !["manager", "admin", "owner", "superadmin"].includes(adminUser.role)) {
       return res.status(403).json({ error: "Permission denied" })
     }
 
@@ -389,6 +413,8 @@ router.put("/members/:memberId/role", auth, async (req, res) => {
     await AuditLog.create({
       action: "member_role_updated",
       userId: adminUser._id,
+      targetType: "user",
+      targetId: member._id,
       details: { memberId, memberEmail: member.email, oldRole, newRole: role },
       ipAddress: req.ip,
     })
@@ -447,6 +473,8 @@ router.delete("/members/:memberId", auth, async (req, res) => {
     await AuditLog.create({
       action: "member_removed",
       userId: adminUser._id,
+      targetType: "user",
+      targetId: member._id,
       details: { memberId, memberEmail: member.email },
       ipAddress: req.ip,
     })
@@ -467,7 +495,7 @@ router.delete("/members/:memberId", auth, async (req, res) => {
 })
 
 // Regenerate invite code
-router.post("/invite-code/regenerate", auth, async (req, res) => {
+router.post("/invite-code/regenerate", auth, validate({ body: orgSchemas.regenerateInvite }), async (req, res) => {
   try {
     const { expiresInHours = 72 } = req.body
     const user = await User.findById(req.user.userId)
@@ -495,7 +523,7 @@ router.post("/invite-code/regenerate", auth, async (req, res) => {
 })
 
 // Update organization settings (owner only)
-router.put("/settings", auth, async (req, res) => {
+router.put("/settings", auth, validate({ body: orgSchemas.updateSettings }), async (req, res) => {
   try {
     const user = await User.findById(req.user.userId)
 
@@ -525,6 +553,8 @@ router.put("/settings", auth, async (req, res) => {
     await AuditLog.create({
       action: "organization_settings_updated",
       userId: user._id,
+      targetType: "organization",
+      targetId: organization._id,
       details: { organizationId: organization._id },
       ipAddress: req.ip,
     })
@@ -574,11 +604,14 @@ router.get("/stats", auth, async (req, res) => {
     ])
 
     const File = require("../models/File")
+    // NOTE: File documents reference their owner via `userId` and store the
+    // size in `fileSize` — the previous pipeline used non-existent fields
+    // (`uploadedBy`, `size`), so these stats always came back as 0.
     const fileStats = await File.aggregate([
       {
         $lookup: {
           from: "users",
-          localField: "uploadedBy",
+          localField: "userId",
           foreignField: "_id",
           as: "uploader",
         },
@@ -589,7 +622,7 @@ router.get("/stats", auth, async (req, res) => {
         $group: {
           _id: null,
           totalFiles: { $sum: 1 },
-          totalSize: { $sum: "$size" },
+          totalSize: { $sum: "$fileSize" },
           infectedFiles: { $sum: { $cond: [{ $eq: ["$scanStatus", "infected"] }, 1, 0] } },
           revokedFiles: { $sum: { $cond: [{ $eq: ["$isRevoked", true] }, 1, 0] } },
         },
@@ -615,7 +648,7 @@ router.get("/stats", auth, async (req, res) => {
 })
 
 // Transfer ownership
-router.post("/transfer-ownership", auth, async (req, res) => {
+router.post("/transfer-ownership", auth, validate({ body: orgSchemas.transferOwnership }), async (req, res) => {
   try {
     const { newOwnerId } = req.body
     const user = await User.findById(req.user.userId)
@@ -655,6 +688,8 @@ router.post("/transfer-ownership", auth, async (req, res) => {
     await AuditLog.create({
       action: "ownership_transferred",
       userId: user._id,
+      targetType: "organization",
+      targetId: organization._id,
       details: {
         organizationId: organization._id,
         previousOwner: user._id,
@@ -710,6 +745,8 @@ router.delete("/", auth, async (req, res) => {
     await AuditLog.create({
       action: "organization_deleted",
       userId: user._id,
+      targetType: "organization",
+      targetId: organization._id,
       details: { organizationId: organization._id, organizationName: organization.name },
       ipAddress: req.ip,
     })
@@ -1142,16 +1179,17 @@ router.get("/monitor/user/:userId", auth, managerMiddleware, async (req, res) =>
       .sort({ timestamp: -1 })
       .limit(50)
 
-    // Get file stats
+    // Get file stats (File fields are `userId`/`fileSize`; "shared" means the
+    // file has an active share token — there is no `sharedWith` array)
     const fileStats = await File.aggregate([
-      { $match: { owner: targetUser._id } },
+      { $match: { userId: targetUser._id } },
       {
         $group: {
           _id: null,
           totalFiles: { $sum: 1 },
-          totalSize: { $sum: "$size" },
+          totalSize: { $sum: "$fileSize" },
           sharedFiles: {
-            $sum: { $cond: [{ $gt: [{ $size: { $ifNull: ["$sharedWith", []] } }, 0] }, 1, 0] },
+            $sum: { $cond: [{ $ifNull: ["$shareToken", false] }, 1, 0] },
           },
         },
       },
@@ -1321,18 +1359,24 @@ router.get("/monitor/stats", auth, managerMiddleware, async (req, res) => {
       { $unwind: "$user" },
     ])
 
-    // Get file statistics
+    // Get file statistics. File documents have no `organization` field —
+    // they belong to users (`userId`), so resolve org membership via $lookup.
     const fileStats = await File.aggregate([
       {
-        $match: {
-          organization: organizationId,
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "uploader",
         },
       },
+      { $unwind: "$uploader" },
+      { $match: { "uploader.organization": organizationId } },
       {
         $group: {
           _id: null,
           totalFiles: { $sum: 1 },
-          totalSize: { $sum: "$size" },
+          totalSize: { $sum: "$fileSize" },
         },
       },
     ])

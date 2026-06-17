@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FaUser, FaLock, FaEye, FaEyeSlash, FaArrowLeft, FaSave, FaEnvelope, FaUserCog } from "react-icons/fa";
-import { Button, Card, CardBody, IconButton, Input } from "../components/atoms";
+import { FaUser, FaLock, FaEye, FaEyeSlash, FaArrowLeft, FaSave, FaEnvelope, FaUserCog, FaSignOutAlt } from "react-icons/fa";
+import { Button, Card, CardBody, IconButton, Input, Divider } from "../components/atoms";
 import { FormField, useToast } from "../components/molecules";
 import { PageHeader, TabBar, TableSkeleton } from "../components/organisms/shared";
-import { getUserProfile, updateUserProfile, updateUserPassword } from "../api";
+import { getUserProfile, updateUserProfile, updateUserPassword, logoutAllDevices } from "../api";
 import styles from "./EditProfile.module.css";
 
 const TABS = [
@@ -26,6 +26,21 @@ const EditProfile = () => {
   const [pw, setPw] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [show, setShow] = useState({ current: false, next: false, confirm: false });
   const [pwError, setPwError] = useState("");
+  const [loggingOutAll, setLoggingOutAll] = useState(false);
+
+  const handleLogoutAll = async () => {
+    setLoggingOutAll(true);
+    try {
+      await logoutAllDevices();
+      toast.success({ title: "Signed out everywhere", description: "All other sessions were ended." });
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout-all Error:", err);
+      toast.error({ title: "Couldn't sign out everywhere", description: "Please try again." });
+    } finally {
+      setLoggingOutAll(false);
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -168,6 +183,28 @@ const EditProfile = () => {
                       <Button type="submit" variant="primary" leftIcon={<FaSave />} loading={saving}>Update password</Button>
                     </div>
                   </form>
+                )}
+
+                {activeTab === "password" && (
+                  <>
+                    <Divider />
+                    <div className={styles.form}>
+                      <FormField
+                        label="Sign out everywhere"
+                        hint="Ends every active session on all devices and revokes their access. Use this if you suspect your account was compromised."
+                      >
+                        <Button
+                          type="button"
+                          variant="danger"
+                          leftIcon={<FaSignOutAlt />}
+                          loading={loggingOutAll}
+                          onClick={handleLogoutAll}
+                        >
+                          Log out of all devices
+                        </Button>
+                      </FormField>
+                    </div>
+                  </>
                 )}
               </CardBody>
             </Card>

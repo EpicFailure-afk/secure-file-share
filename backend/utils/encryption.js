@@ -2,77 +2,89 @@ const crypto = require("crypto")
 const fs = require("fs")
 const path = require("path")
 
-// Get encryption key from environment variable
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
-// If no key is provided, generate a warning but use a fallback for development
-if (!ENCRYPTION_KEY) {
-  console.warn("WARNING: ENCRYPTION_KEY environment variable not set. Using fallback key for development only.")
-  // This is just a fallback for development - in production, always use an environment variable
-}
-
-const IV_LENGTH = 16 // For AES, this is always 16 bytes
+// Algorithms
+// - AES-256-GCM is the ACTIVE algorithm for all new uploads. It is an AEAD
+//   cipher: decryption fails loudly if the ciphertext was tampered with.
+// - AES-256-CBC is kept for DECRYPTION ONLY, so files uploaded before the
+//   GCM migration remain readable. CBC is never used for new encryption.
+const GCM_ALGORITHM = "aes-256-gcm"
+const CBC_ALGORITHM = "aes-256-cbc"
+const GCM_IV_LENGTH = 12 // NIST-recommended 96-bit IV for GCM
+const CBC_IV_LENGTH = 16 // AES block size
 
 /**
- * Properly formats the encryption key to ensure it's a 32-byte buffer
- * @returns {Buffer} A 32-byte buffer for AES-256
+ * Resolves the 32-byte AES-256 key from the ENCRYPTION_KEY env var.
+ * There is intentionally NO fallback key: encrypting with a hardcoded,
+ * publicly known constant is equivalent to not encrypting at all, so a
+ * missing key must fail loudly instead of silently degrading.
+ * @returns {Buffer} 32-byte key
  */
 const getEncryptionKey = () => {
-  if (ENCRYPTION_KEY) {
-    // If the key is a 64-character hex string (32 bytes when converted from hex)
-    if (ENCRYPTION_KEY.length === 64 && /^[0-9a-f]+$/i.test(ENCRYPTION_KEY)) {
-      return Buffer.from(ENCRYPTION_KEY, "hex")
-    }
-
-    // If it's a regular string, hash it to get a consistent length key
-    const hash = crypto.createHash("sha256")
-    hash.update(ENCRYPTION_KEY)
-    return hash.digest()
+  const raw = process.env.ENCRYPTION_KEY
+  if (!raw) {
+    throw new Error(
+      "ENCRYPTION_KEY environment variable is not set. " +
+        "Refusing to start file encryption with no key — set a 64-char hex key in the environment.",
+    )
   }
 
-  // Fallback key for development only
-  return Buffer.from(generateFallbackKey(), "utf8")
+  // 64-character hex string → use the raw 32 bytes
+  if (raw.length === 64 && /^[0-9a-f]+$/i.test(raw)) {
+    return Buffer.from(raw, "hex")
+  }
+
+  // Any other string → derive a consistent 32-byte key
+  return crypto.createHash("sha256").update(raw).digest()
 }
 
+// Fail fast at startup (module load) rather than on the first upload.
+getEncryptionKey()
+
 /**
- * Encrypts a file using AES-256-CBC
- * @param {string} filePath - Path to the file to encrypt
- * @param {string} destinationPath - Path where to save the encrypted file
- * @returns {Promise<{encryptedPath: string, iv: string}>} - Path to encrypted file and the IV used
+ * Encrypts a file using AES-256-GCM (authenticated encryption).
+ * Output layout on disk: [12-byte IV][ciphertext]. The GCM auth tag is
+ * returned (hex) for storage in the File document (`encryptionAuthTag`).
+ * @param {string} filePath - Path to the plaintext file
+ * @param {string} destinationPath - Path for the encrypted output
+ * @returns {Promise<{encryptedPath: string, iv: string, authTag: string, algorithm: string}>}
  */
-const encryptFile = (filePath, destinationPath) => {
+const encryptFile = (filePath, destinationPath, key) => {
   return new Promise((resolve, reject) => {
     try {
-      // Generate a random initialization vector
-      const iv = crypto.randomBytes(IV_LENGTH)
+      const iv = crypto.randomBytes(GCM_IV_LENGTH)
+      // `key` is the per-file DEK (envelope encryption). Falls back to the
+      // master key only for callers that don't supply one.
+      const cipher = crypto.createCipheriv(GCM_ALGORITHM, key || getEncryptionKey(), iv)
 
-      // Create cipher using AES-256-CBC with properly formatted key
-      const cipher = crypto.createCipheriv("aes-256-cbc", getEncryptionKey(), iv)
-
-      // Create read and write streams
       const readStream = fs.createReadStream(filePath)
       const writeStream = fs.createWriteStream(destinationPath)
 
-      // Write the IV at the beginning of the output file
+      // IV is not secret — store it at the start of the encrypted file
       writeStream.write(iv)
 
-      // Pipe the input file through the cipher and into the output file
       readStream.pipe(cipher).pipe(writeStream)
 
       writeStream.on("finish", () => {
-        // Delete the original file after encryption
+        // The auth tag is only available after the cipher has been finalized,
+        // which has happened by the time the write stream finishes.
+        const authTag = cipher.getAuthTag()
+
+        // Delete the original plaintext file after encryption
         fs.unlink(filePath, (err) => {
           if (err) console.error("Error deleting original file:", err)
 
           resolve({
             encryptedPath: destinationPath,
             iv: iv.toString("hex"),
+            authTag: authTag.toString("hex"),
+            algorithm: GCM_ALGORITHM,
           })
         })
       })
 
-      writeStream.on("error", (err) => {
-        reject(err)
-      })
+      readStream.on("error", reject)
+      cipher.on("error", reject)
+      writeStream.on("error", reject)
     } catch (err) {
       reject(err)
     }
@@ -80,75 +92,81 @@ const encryptFile = (filePath, destinationPath) => {
 }
 
 /**
- * Decrypts a file using AES-256-CBC
+ * Reads the IV header (first `ivLength` bytes) of an encrypted file.
+ * @returns {Promise<Buffer>}
+ */
+const readIvHeader = (encryptedFilePath, ivLength) => {
+  return new Promise((resolve, reject) => {
+    fs.open(encryptedFilePath, "r", (openErr, fd) => {
+      if (openErr) return reject(openErr)
+      const buffer = Buffer.alloc(ivLength)
+      fs.read(fd, buffer, 0, ivLength, 0, (readErr, bytesRead) => {
+        fs.close(fd, () => {})
+        if (readErr) return reject(readErr)
+        if (bytesRead < ivLength) return reject(new Error("Encrypted file is truncated (missing IV header)"))
+        resolve(buffer)
+      })
+    })
+  })
+}
+
+/**
+ * Decrypts a file. Defaults to legacy AES-256-CBC for files uploaded before
+ * the GCM migration; pass the file's stored algorithm/authTag for GCM files.
+ *
+ * NOTE: this replaces the previous implementation, which fed the first read
+ * chunk through the decipher TWICE (once via decipher.update and again via a
+ * second read stream), corrupting every decrypted download. Decryption now
+ * streams the file exactly once, starting after the IV header.
+ *
  * @param {string} encryptedFilePath - Path to the encrypted file
- * @param {string} outputPath - Path where to save the decrypted file
+ * @param {string} outputPath - Path for the decrypted output
+ * @param {{algorithm?: string, authTag?: string|null}} [options]
  * @returns {Promise<string>} - Path to decrypted file
  */
-const decryptFile = (encryptedFilePath, outputPath) => {
+const decryptFile = (encryptedFilePath, outputPath, options = {}) => {
+  const algorithm = options.algorithm === GCM_ALGORITHM ? GCM_ALGORITHM : CBC_ALGORITHM
+  const ivLength = algorithm === GCM_ALGORITHM ? GCM_IV_LENGTH : CBC_IV_LENGTH
+
   return new Promise((resolve, reject) => {
-    try {
-      // Create read stream for the encrypted file
-      const readStream = fs.createReadStream(encryptedFilePath)
+    readIvHeader(encryptedFilePath, ivLength)
+      .then((iv) => {
+        // `options.key` is the per-file DEK; legacy files omit it and fall back
+        // to the master key.
+        const decipher = crypto.createDecipheriv(algorithm, options.key || getEncryptionKey(), iv)
 
-      // We need to read the IV from the first 16 bytes of the file
-      const chunks = []
-
-      readStream.on("data", (chunk) => {
-        chunks.push(chunk)
-
-        // Once we have enough data to extract the IV
-        if (Buffer.concat(chunks).length >= IV_LENGTH) {
-          // Stop collecting chunks
-          readStream.destroy()
-
-          // Extract the IV from the beginning of the file
-          const buffer = Buffer.concat(chunks)
-          const iv = buffer.slice(0, IV_LENGTH)
-          const encryptedData = buffer.slice(IV_LENGTH)
-
-          // Create decipher with properly formatted key
-          const decipher = crypto.createDecipheriv("aes-256-cbc", getEncryptionKey(), iv)
-
-          // Create write stream for the decrypted file
-          const writeStream = fs.createWriteStream(outputPath)
-
-          // Write the initial encrypted data (minus the IV)
-          writeStream.write(decipher.update(encryptedData))
-
-          // Create a new read stream starting after the IV
-          const remainingReadStream = fs.createReadStream(encryptedFilePath, {
-            start: IV_LENGTH,
-          })
-
-          // Pipe the remaining data through the decipher
-          remainingReadStream.pipe(decipher).pipe(writeStream)
-
-          writeStream.on("finish", () => {
-            resolve(outputPath)
-          })
-
-          writeStream.on("error", (err) => {
-            reject(err)
-          })
+        if (algorithm === GCM_ALGORITHM) {
+          if (!options.authTag) {
+            return reject(new Error("Missing GCM auth tag — cannot verify and decrypt this file"))
+          }
+          decipher.setAuthTag(Buffer.from(options.authTag, "hex"))
         }
-      })
 
-      readStream.on("error", (err) => {
-        reject(err)
+        // Stream the ciphertext exactly once, starting after the IV header
+        const readStream = fs.createReadStream(encryptedFilePath, { start: ivLength })
+        const writeStream = fs.createWriteStream(outputPath)
+
+        readStream.pipe(decipher).pipe(writeStream)
+
+        writeStream.on("finish", () => resolve(outputPath))
+
+        readStream.on("error", reject)
+        // For GCM, tampering is detected here: decipher.final() throws
+        // "Unsupported state or unable to authenticate data".
+        decipher.on("error", reject)
+        writeStream.on("error", reject)
       })
-    } catch (err) {
-      reject(err)
-    }
+      .catch(reject)
   })
 }
 
 /**
- * Decrypts a file to a temporary location and returns a read stream
+ * Decrypts a file to a temporary location and returns a read stream.
  * @param {string} encryptedFilePath - Path to the encrypted file
- * @returns {Promise<{stream: fs.ReadStream, cleanup: Function}>} - Read stream of decrypted file and cleanup function
+ * @param {{algorithm?: string, authTag?: string|null}} [options]
+ * @returns {Promise<{stream: fs.ReadStream, cleanup: Function}>}
  */
-const decryptFileToStream = (encryptedFilePath) => {
+const decryptFileToStream = (encryptedFilePath, options = {}) => {
   return new Promise((resolve, reject) => {
     try {
       // Create a temporary file for the decrypted content
@@ -157,13 +175,10 @@ const decryptFileToStream = (encryptedFilePath) => {
         `temp_${Date.now()}_${path.basename(encryptedFilePath)}`,
       )
 
-      // Decrypt the file to the temporary location
-      decryptFile(encryptedFilePath, tempFilePath)
+      decryptFile(encryptedFilePath, tempFilePath, options)
         .then((decryptedPath) => {
-          // Create a read stream for the decrypted file
           const stream = fs.createReadStream(decryptedPath)
 
-          // Create a cleanup function to delete the temporary file
           const cleanup = () => {
             fs.unlink(decryptedPath, (err) => {
               if (err) console.error("Error deleting temporary file:", err)
@@ -179,20 +194,8 @@ const decryptFileToStream = (encryptedFilePath) => {
   })
 }
 
-/**
- * Generate a fallback key for development purposes only
- * WARNING: This should never be used in production
- * @returns {string} - A 32-byte key derived from the app name
- */
-const generateFallbackKey = () => {
-  // This is just for development - NEVER use this in production
-  const baseKey = "SecureFileSharing-Development-Only-Key"
-  return crypto.createHash("sha256").update(baseKey).digest("hex").slice(0, 32)
-}
-
 module.exports = {
   encryptFile,
   decryptFile,
   decryptFileToStream,
 }
-

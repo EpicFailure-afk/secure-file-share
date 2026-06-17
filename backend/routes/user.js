@@ -2,6 +2,9 @@ const express = require("express")
 const bcrypt = require("bcryptjs")
 const User = require("../models/User") // Import the User model
 const authMiddleware = require("../middleware/auth") // Import auth middleware
+const { validate } = require("../middleware/validate")
+const { user: userSchemas } = require("../validators/schemas")
+const { hashPassword, verifyPassword } = require("../utils/passwords")
 
 const router = express.Router()
 
@@ -35,7 +38,7 @@ router.get("/profile", authMiddleware, async (req, res) => {
 })
 
 // Update user profile (protected route)
-router.put("/update-profile", authMiddleware, async (req, res) => {
+router.put("/update-profile", authMiddleware, validate({ body: userSchemas.updateProfile }), async (req, res) => {
   try {
     const { username } = req.body
 
@@ -77,7 +80,7 @@ router.put("/update-profile", authMiddleware, async (req, res) => {
 })
 
 // Update user password (protected route)
-router.put("/update-password", authMiddleware, async (req, res) => {
+router.put("/update-password", authMiddleware, validate({ body: userSchemas.changePassword }), async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body
 
@@ -92,15 +95,14 @@ router.put("/update-password", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "User not found" })
     }
 
-    // Verify current password
-    const isMatch = await bcrypt.compare(currentPassword, user.password)
+    // Verify current password (supports legacy bcrypt + Argon2id)
+    const isMatch = await verifyPassword(currentPassword, user.password)
     if (!isMatch) {
       return res.status(400).json({ error: "Current password is incorrect" })
     }
 
-    // Hash new password
-    const salt = await bcrypt.genSalt(10)
-    const hashedPassword = await bcrypt.hash(newPassword, salt)
+    // Hash new password (Argon2id)
+    const hashedPassword = await hashPassword(newPassword)
 
     // Update password
     user.password = hashedPassword

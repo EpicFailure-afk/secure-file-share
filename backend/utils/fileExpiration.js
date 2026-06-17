@@ -2,6 +2,7 @@ const fs = require("fs")
 const File = require("../models/File")
 const User = require("../models/User")
 const AuditLog = require("../models/AuditLog")
+const blobStorage = require("./storage")
 
 /**
  * Calculate expiration date based on value and unit
@@ -185,9 +186,9 @@ const restoreFile = async (fileId, userId) => {
       return { success: false, message: "File is not revoked" }
     }
 
-    // Check if file still exists on disk
-    if (!fs.existsSync(file.filePath)) {
-      return { success: false, message: "File no longer exists on disk" }
+    // Check if the encrypted blob still exists in storage
+    if (!(await blobStorage.exists(file.filePath))) {
+      return { success: false, message: "File no longer exists in storage" }
     }
 
     await File.findByIdAndUpdate(fileId, {
@@ -233,8 +234,8 @@ const cleanupExpiredFiles = async (deleteFromDisk = true) => {
 
     for (const file of expiredFiles) {
       try {
-        if (deleteFromDisk && fs.existsSync(file.filePath)) {
-          fs.unlinkSync(file.filePath)
+        if (deleteFromDisk) {
+          await blobStorage.remove(file.filePath)
         }
 
         // Update user storage

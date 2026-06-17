@@ -1,5 +1,7 @@
 const express = require("express")
 const { sendEmail } = require("../utils/email")
+const { validate } = require("../middleware/validate")
+const { contact: contactSchemas } = require("../validators/schemas")
 const router = express.Router()
 
 /**
@@ -7,7 +9,7 @@ const router = express.Router()
  * @desc Send contact form message
  * @access Public
  */
-router.post("/", async (req, res) => {
+router.post("/", validate({ body: contactSchemas.send }), async (req, res) => {
   try {
     const { name, email, subject, message } = req.body
 
